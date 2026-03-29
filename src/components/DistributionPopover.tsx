@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { descriptiveStats } from '../stats/descriptive'
 import { matchDistributions } from '../stats/distribution-match'
@@ -29,17 +29,54 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
   const stats = useMemo(() => data ? descriptiveStats(data) : null, [data])
   const matches = useMemo(() => data ? matchDistributions(data) : [], [data])
 
+  const [measured, setMeasured] = useState(false)
+
   const getPosition = useCallback(() => {
-    if (!anchorRef.current) return { top: 0, left: 0 }
+    if (!anchorRef.current) return { top: 0, left: 0, maxHeight: undefined as number | undefined }
     const rect = anchorRef.current.getBoundingClientRect()
-    const top = rect.bottom + 8
+    const gap = 8
+    const margin = 8
+
+    // Horizontal clamping
     let left = rect.left + rect.width / 2 - POPOVER_WIDTH / 2
-    if (left < 8) left = 8
-    if (left + POPOVER_WIDTH > window.innerWidth - 8) left = window.innerWidth - POPOVER_WIDTH - 8
-    return { top, left }
+    if (left < margin) left = margin
+    if (left + POPOVER_WIDTH > window.innerWidth - margin) left = window.innerWidth - POPOVER_WIDTH - margin
+
+    // Vertical: measure popover if available, otherwise estimate
+    const popoverH = popoverRef.current?.offsetHeight ?? 500
+    const spaceBelow = window.innerHeight - rect.bottom - gap
+    const spaceAbove = rect.top - gap
+
+    let top: number
+    let maxHeight: number | undefined
+
+    if (spaceBelow >= popoverH) {
+      // Fits below
+      top = rect.bottom + gap
+    } else if (spaceAbove >= popoverH) {
+      // Fits above
+      top = rect.top - gap - popoverH
+    } else if (spaceBelow >= spaceAbove) {
+      // More room below — pin below with scroll
+      top = rect.bottom + gap
+      maxHeight = spaceBelow - margin
+    } else {
+      // More room above — pin above with scroll
+      top = margin
+      maxHeight = rect.top - gap - margin
+    }
+
+    return { top, left, maxHeight }
   }, [anchorRef])
 
   const pos = getPosition()
+
+  // Re-measure after first render to get actual popover height
+  useEffect(() => {
+    if (!measured && popoverRef.current) {
+      setMeasured(true)
+    }
+  }, [measured])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -88,6 +125,7 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
           fontFamily: theme.font.family,
           boxShadow: t.shadow,
           animation: 'popover-in 0.15s ease-out',
+          ...(pos.maxHeight ? { maxHeight: pos.maxHeight, overflowY: 'auto' as const } : {}),
         }}
       >
         <button
