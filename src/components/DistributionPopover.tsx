@@ -5,10 +5,15 @@ import { matchDistributions } from '../stats/distribution-match'
 import { Histogram } from './Histogram'
 import { StatsSummary } from './StatsSummary'
 import { DistributionMatchCard } from './DistributionMatchCard'
+import { CategoricalBarChart } from './CategoricalBarChart'
+import { CategoricalStatsSummary } from './CategoricalStatsSummary'
+import { CategoricalMatchCard } from './CategoricalMatchCard'
+import type { CategoricalSummary } from '../stats/categorical'
 import type { BoxPlotTheme } from '../themes'
 
 interface DistributionPopoverProps {
-  data: number[]
+  data?: number[]
+  categoricalSummary?: CategoricalSummary
   anchorRef: React.RefObject<SVGSVGElement | null>
   onClose: () => void
   theme: BoxPlotTheme
@@ -16,12 +21,13 @@ interface DistributionPopoverProps {
 
 const POPOVER_WIDTH = 460
 
-export function DistributionPopover({ data, anchorRef, onClose, theme }: DistributionPopoverProps) {
+export function DistributionPopover({ data, categoricalSummary: catSummary, anchorRef, onClose, theme }: DistributionPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null)
   const t = theme.popover
+  const isCategorical = !!catSummary
 
-  const stats = useMemo(() => descriptiveStats(data), [data])
-  const matches = useMemo(() => matchDistributions(data), [data])
+  const stats = useMemo(() => data ? descriptiveStats(data) : null, [data])
+  const matches = useMemo(() => data ? matchDistributions(data) : [], [data])
 
   const getPosition = useCallback(() => {
     if (!anchorRef.current) return { top: 0, left: 0 }
@@ -101,11 +107,23 @@ export function DistributionPopover({ data, anchorRef, onClose, theme }: Distrib
           &times;
         </button>
 
-        <Histogram data={data} width={POPOVER_WIDTH - 32} height={220} theme={theme} />
-        <hr style={ruleStyle} />
-        <StatsSummary stats={stats} theme={theme} />
-        <hr style={ruleStyle} />
-        <DistributionMatchCard matches={matches} theme={theme} />
+        {isCategorical && catSummary ? (
+          <>
+            <CategoricalBarChart summary={catSummary} width={POPOVER_WIDTH - 32} height={220} theme={theme} />
+            <hr style={ruleStyle} />
+            <CategoricalStatsSummary summary={catSummary} theme={theme} />
+            <hr style={ruleStyle} />
+            <CategoricalMatchCard summary={catSummary} theme={theme} />
+          </>
+        ) : data && stats ? (
+          <>
+            <Histogram data={data} width={POPOVER_WIDTH - 32} height={220} theme={theme} />
+            <hr style={ruleStyle} />
+            <StatsSummary stats={stats} theme={theme} />
+            <hr style={ruleStyle} />
+            <DistributionMatchCard matches={matches} theme={theme} />
+          </>
+        ) : null}
       </div>
     </>,
     document.body,

@@ -27,12 +27,13 @@ type DeepPartial<T> = {
 }
 
 export interface RenderOptions {
-  data: number[]
+  data: number[] | string[] | Record<string, number>
   variant?: BoxPlotVariant
   size?: BoxPlotSize
   theme?: keyof typeof themes | BoxPlotTheme
   width?: number
   height?: number
+  categoryOrder?: string[]
 }
 
 const roots = new WeakMap<Element, Root>()
@@ -58,7 +59,7 @@ function render(container: Element | null, options: RenderOptions) {
     roots.set(container, root)
   }
 
-  const { data, variant, size, theme, width, height } = options
+  const { data, variant, size, theme, width, height, categoryOrder } = options
   const resolvedTheme = resolveTheme(theme)
 
   root.render(
@@ -69,6 +70,7 @@ function render(container: Element | null, options: RenderOptions) {
       theme: resolvedTheme,
       width,
       height,
+      categoryOrder,
     })
   )
 
@@ -100,14 +102,22 @@ function renderAll(selector: string = '[data-boxplot]') {
     const valuesAttr = el.getAttribute('data-values')
     if (!valuesAttr) return
 
-    const data = valuesAttr.split(',').map(Number).filter(n => !isNaN(n))
+    const raw = valuesAttr.split(',').map(s => s.trim())
+    // Auto-detect: if all values parse as numbers, treat as numeric
+    const asNumbers = raw.map(Number)
+    const allNumeric = asNumbers.every(n => !isNaN(n))
+    const data: number[] | string[] = allNumeric ? asNumbers : raw
     if (data.length === 0) return
+
+    const orderAttr = el.getAttribute('data-category-order')
+    const categoryOrder = orderAttr ? orderAttr.split(',').map(s => s.trim()) : undefined
 
     handles.push(render(el, {
       data,
       variant: (el.getAttribute('data-variant') as BoxPlotVariant) || undefined,
       size: (el.getAttribute('data-size') as BoxPlotSize) || undefined,
       theme: (el.getAttribute('data-theme') as keyof typeof themes) || undefined,
+      categoryOrder,
     }))
   })
 

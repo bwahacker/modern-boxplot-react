@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { BoxPlotSparkline, themes, mean, stddev } from '../src'
-import type { BoxPlotVariant, BoxPlotSize, BoxPlotTheme } from '../src'
+import { BoxPlotSparkline, themes, mean, stddev, categoricalSummary } from '../src'
+import type { BoxPlotVariant, BoxPlotSize, BoxPlotTheme, ValueCounts } from '../src'
 
 // ── Deterministic seeded random ────────────────────────────────────────
 
@@ -57,6 +57,63 @@ const datasets = [
   { name: 'Sensor readings', desc: 'Temperature (°C)', data: generateUniform(400, 18, 82, 256) },
   { name: 'Wait times', desc: 'Queue duration (min)', data: generateExponential(300, 0.15, 77) },
   { name: 'City populations', desc: 'Two-cluster (k)', data: generateBimodal(250, 314) },
+]
+
+// ── Categorical datasets ──────────────────────────────────────────────
+
+function generateCategorical(labels: string[], counts: number[], seed: number): string[] {
+  const rand = mulberry32(seed)
+  const result: string[] = []
+  for (let i = 0; i < labels.length; i++) {
+    for (let j = 0; j < counts[i]; j++) result.push(labels[i])
+  }
+  // Shuffle to simulate raw observations
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
+const catDatasets: { name: string; desc: string; data: string[] | ValueCounts; categoryOrder?: string[] }[] = [
+  {
+    name: 'Satisfaction survey',
+    desc: 'Customer feedback',
+    data: generateCategorical(
+      ['Very Unsatisfied', 'Unsatisfied', 'Neutral', 'Satisfied', 'Very Satisfied'],
+      [15, 30, 80, 120, 55], 42,
+    ),
+    categoryOrder: ['Very Unsatisfied', 'Unsatisfied', 'Neutral', 'Satisfied', 'Very Satisfied'],
+  },
+  {
+    name: 'Bug severity',
+    desc: 'Issue tracker',
+    data: generateCategorical(
+      ['Critical', 'High', 'Medium', 'Low', 'Trivial'],
+      [5, 18, 45, 30, 12], 99,
+    ),
+  },
+  {
+    name: 'Color preference',
+    desc: 'User survey',
+    data: generateCategorical(
+      ['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange'],
+      [42, 67, 35, 28, 51, 19], 137,
+    ),
+  },
+  {
+    name: 'Department size',
+    desc: 'Headcount by team',
+    data: generateCategorical(
+      ['Engineering', 'Sales', 'Marketing', 'Support', 'Design', 'Legal', 'HR', 'Finance'],
+      [85, 42, 35, 60, 28, 12, 18, 20], 256,
+    ),
+  },
+  {
+    name: 'Language popularity',
+    desc: 'value_counts() dict',
+    data: { Python: 142, JavaScript: 118, TypeScript: 95, Rust: 47, Go: 63, Java: 82, 'C++': 38 },
+  },
 ]
 
 // ── Picker options ─────────────────────────────────────────────────────
@@ -161,6 +218,57 @@ export default function App() {
               </td>
             </tr>
           ))}
+        </tbody>
+      </table>
+
+      {/* Categorical data table */}
+      <h2 style={{ fontSize: 16, fontWeight: 400, marginTop: 40, marginBottom: 4 }}>
+        Categorical Data
+      </h2>
+      <p style={{ fontSize: 12, color: isDark ? '#475569' : '#94a3b8', marginBottom: 16 }}>
+        Categories automatically arranged for bell-curve shaped frequency profile.
+        Variant picker does not apply — categorical data always renders as a bar chart.
+      </p>
+
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ borderBottom: `2px solid ${isDark ? '#334155' : '#334155'}` }}>
+            <th style={thStyle(isDark)}>Dataset</th>
+            <th style={{ ...thStyle(isDark), textAlign: 'right' }}>n</th>
+            <th style={thStyle(isDark)}>Distribution</th>
+            <th style={thStyle(isDark)}>Mode</th>
+            <th style={{ ...thStyle(isDark), textAlign: 'right' }}>Categories</th>
+          </tr>
+        </thead>
+        <tbody>
+          {catDatasets.map(ds => {
+            const summary = categoricalSummary(ds.data, ds.categoryOrder)
+            return (
+              <tr key={ds.name} style={{ borderBottom: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}` }}>
+                <td style={tdStyle(isDark)}>
+                  <div style={{ fontWeight: 500 }}>{ds.name}</div>
+                  <div style={{ fontSize: 11, color: isDark ? '#475569' : '#94a3b8' }}>{ds.desc}</div>
+                </td>
+                <td style={{ ...tdStyle(isDark), textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {summary.totalCount}
+                </td>
+                <td style={tdStyle(isDark)}>
+                  <BoxPlotSparkline
+                    data={ds.data}
+                    size={size}
+                    theme={activeTheme}
+                    categoryOrder={ds.categoryOrder}
+                  />
+                </td>
+                <td style={tdStyle(isDark)}>
+                  {summary.mode}
+                </td>
+                <td style={{ ...tdStyle(isDark), textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {summary.numCategories}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
 

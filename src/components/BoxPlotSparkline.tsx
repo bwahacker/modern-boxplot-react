@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import { fiveNumberSummary, outliers, whiskerBounds, cleanData } from '../stats/descriptive'
 import { kernelDensity } from '../stats/histogram'
+import { categoricalSummary, isValueCounts } from '../stats/categorical'
+import type { CategoricalSummary, ValueCounts } from '../stats/categorical'
 import { DistributionPopover } from './DistributionPopover'
 import { themes } from '../themes'
 import type { BoxPlotTheme } from '../themes'
@@ -22,12 +24,15 @@ const SIZE_PRESETS: Record<BoxPlotSize, { width: number; height: number }> = {
 }
 
 export interface BoxPlotSparklineProps {
-  data: number[]
+  /** Numeric array, string array, or value_counts dict (Record<string, number>) */
+  data: number[] | string[] | ValueCounts
   width?: number
   height?: number
   variant?: BoxPlotVariant
   size?: BoxPlotSize
   theme?: BoxPlotTheme
+  /** Explicit category ordering (e.g. Likert scales). Skips bell-curve optimization. */
+  categoryOrder?: string[]
 }
 
 export function BoxPlotSparkline({
@@ -37,6 +42,7 @@ export function BoxPlotSparkline({
   variant = 'tufte',
   size = 'md',
   theme = themes.tufte,
+  categoryOrder,
 }: BoxPlotSparklineProps) {
   const ref = useRef<SVGSVGElement>(null)
   const [open, setOpen] = useState(false)
@@ -46,7 +52,19 @@ export function BoxPlotSparkline({
   const height = heightOverride ?? preset.height
   const c = theme.colors
 
-  const data = useMemo(() => cleanData(rawData), [rawData])
+  const isCategorical = isValueCounts(rawData) ||
+    (Array.isArray(rawData) && rawData.length > 0 && typeof rawData[0] === 'string')
+
+  const catSummary: CategoricalSummary | null = useMemo(() => {
+    if (!isCategorical) return null
+    if (isValueCounts(rawData)) return categoricalSummary(rawData, categoryOrder)
+    return categoricalSummary(rawData as string[], categoryOrder)
+  }, [rawData, categoryOrder, isCategorical])
+
+  const data = useMemo(() => {
+    if (isCategorical) return []
+    return cleanData(rawData as number[])
+  }, [rawData, isCategorical])
 
   const stats = useMemo(() => {
     if (data.length === 0) return null
@@ -60,6 +78,68 @@ export function BoxPlotSparkline({
   const plotWidth = width - pad * 2
   const cy = height / 2
 
+  // ── Categorical rendering ───────────────────────────────────────────
+  if (isCategorical && catSummary) {
+    const cats = catSummary.categories
+    const maxCount = Math.max(...cats.map(ct => ct.count))
+    const barW = plotWidth / cats.length
+    const gap = Math.max(0.5, barW * 0.1)
+    const maxBarH = height * 0.9
+
+    const catPopover = open && (
+      <DistributionPopover
+        categoricalSummary={catSummary}
+        anchorRef={ref}
+        onClose={() => setOpen(false)}
+        theme={theme}
+      />
+    )
+
+    if (cats.length === 0) {
+      return (
+        <svg width={width} height={height} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+          <text x={width / 2} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
+            fill={c.secondary} fontSize={14} fontFamily={theme.font.family}>&mdash;</text>
+        </svg>
+      )
+    }
+
+    return (
+      <>
+        <svg
+          width={width}
+          height={height}
+          ref={ref}
+          style={{ display: 'inline-block', verticalAlign: 'middle', cursor: 'pointer' }}
+          onClick={() => setOpen(!open)}
+        >
+          {cats.map((cat, i) => {
+            const bx = pad + i * barW + gap / 2
+            const bw = Math.max(1, barW - gap)
+            const bh = maxCount > 0 ? (cat.count / maxCount) * maxBarH : 0
+            const by = height - bh
+            const isMode = cat.label === catSummary.mode
+            return (
+              <rect
+                key={i}
+                x={bx}
+                y={by}
+                width={bw}
+                height={bh}
+                fill={isMode ? c.primary : c.faint}
+                stroke={isMode ? c.primary : c.secondary}
+                strokeWidth={0.5}
+                rx={0.5}
+              />
+            )
+          })}
+        </svg>
+        {catPopover}
+      </>
+    )
+  }
+
+  // ── Numeric rendering ───────────────────────────────────────────────
   const popover = open && (
     <DistributionPopover data={data} anchorRef={ref} onClose={() => setOpen(false)} theme={theme} />
   )
