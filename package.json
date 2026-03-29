@@ -1,0 +1,47 @@
+{
+  "name": "modern-boxplot-react",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/modern-boxplot-react.umd.cjs",
+  "module": "dist/modern-boxplot-react.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/modern-boxplot-react.js",
+      "require": "./dist/modern-boxplot-react.umd.cjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./standalone": "./dist/modern-boxplot.standalone.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite serve --config vite.demo.config.ts",
+    "build": "tsc --noEmit && vite build && vite build --config vite.standalone.config.ts",
+    "build:lib": "tsc --noEmit && vite build",
+    "build:standalone": "vite build --config vite.standalone.config.ts",
+    "build:demo": "vite build --config vite.demo.config.ts",
+    "preview": "vite preview --config vite.demo.config.ts"
+  },
+  "peerDependencies": {
+    "react": ">=17",
+    "react-dom": ">=17"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.0",
+    "vite-plugin-dts": "^4.5.4"
+  },
+  "author": "Mitch Haile <mitch.haile@gmail.com> (https://www.mitchhaile.com)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bwahacker/modern-boxplot-react.git"
+  }
+}
