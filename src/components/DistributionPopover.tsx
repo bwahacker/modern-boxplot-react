@@ -17,11 +17,15 @@ interface DistributionPopoverProps {
   anchorRef: React.RefObject<SVGSVGElement | null>
   onClose: () => void
   theme: BoxPlotTheme
+  /** Title displayed at the top of the popover card. */
+  title?: string
+  /** Footnote displayed at the bottom of the popover card. */
+  footnote?: string
 }
 
 const POPOVER_WIDTH = 460
 
-export function DistributionPopover({ data, categoricalSummary: catSummary, anchorRef, onClose, theme }: DistributionPopoverProps) {
+export function DistributionPopover({ data, categoricalSummary: catSummary, anchorRef, onClose, theme, title, footnote }: DistributionPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null)
   const t = theme.popover
   const isCategorical = !!catSummary
@@ -145,6 +149,15 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
           &times;
         </button>
 
+        {title && (
+          <div style={{
+            fontSize: 14, fontWeight: 600, color: t.text,
+            marginBottom: 12, paddingRight: 20,
+          }}>
+            {title}
+          </div>
+        )}
+
         {isCategorical && catSummary ? (
           <>
             <CategoricalBarChart summary={catSummary} width={POPOVER_WIDTH - 32} height={220} theme={theme} />
@@ -162,6 +175,18 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
             <DistributionMatchCard matches={matches} theme={theme} />
           </>
         ) : null}
+
+        {footnote && (
+          <>
+            <hr style={ruleStyle} />
+            <div style={{
+              fontSize: 11, color: t.textMuted,
+              lineHeight: 1.4,
+            }}>
+              {footnote}
+            </div>
+          </>
+        )}
       </div>
     </>,
     document.body,

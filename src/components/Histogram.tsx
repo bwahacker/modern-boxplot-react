@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { binData, kernelDensity } from '../stats/histogram'
-import { fiveNumberSummary, mean as calcMean } from '../stats/descriptive'
+import { fiveNumberSummary, mean as calcMean, whiskerBounds, outliers as calcOutliers } from '../stats/descriptive'
 import type { BoxPlotTheme } from '../themes'
 
 interface HistogramProps {
@@ -19,8 +19,8 @@ function fmtAxis(n: number): string {
   return n.toFixed(2)
 }
 
-export function Histogram({ data, width = 420, height = 220, theme }: HistogramProps) {
-  const pad = { top: 12, right: 16, bottom: 52, left: 16 }
+export function Histogram({ data, width = 420, height = 232, theme }: HistogramProps) {
+  const pad = { top: 12, right: 16, bottom: 64, left: 16 }
   const plotW = width - pad.left - pad.right
   const plotH = height - pad.top - pad.bottom
   const c = theme.colors
@@ -30,6 +30,8 @@ export function Histogram({ data, width = 420, height = 220, theme }: HistogramP
   const kde = useMemo(() => kernelDensity(data, 80), [data])
   const fns = useMemo(() => fiveNumberSummary(data), [data])
   const dataMean = useMemo(() => calcMean(data), [data])
+  const wb = useMemo(() => whiskerBounds(data), [data])
+  const dataOutliers = useMemo(() => calcOutliers(data), [data])
 
   const maxCount = Math.max(...bins.map(b => b.count), 1)
   const maxDensity = Math.max(...kde.map(p => p.y), 1e-10)
@@ -111,6 +113,45 @@ export function Histogram({ data, width = 420, height = 220, theme }: HistogramP
         )
       })}
 
+      {/* Box plot strip overlay */}
+      {(() => {
+        const bpY = baseline + 22  // center of the strip, below tick labels
+        const bpH = 8              // box height
+        const capH = 4             // whisker cap height
+        const xWL = clampX(wb.lower)
+        const xWU = clampX(wb.upper)
+        const xQ1 = clampX(fns.q1)
+        const xQ3 = clampX(fns.q3)
+        const xMed = clampX(fns.median)
+        const xMn = clampX(dataMean)
+        return (
+          <g>
+            {/* Whisker lines */}
+            <line x1={xWL} y1={bpY} x2={xQ1} y2={bpY} stroke={c.secondary} strokeWidth={1} />
+            <line x1={xQ3} y1={bpY} x2={xWU} y2={bpY} stroke={c.secondary} strokeWidth={1} />
+            {/* Whisker caps */}
+            <line x1={xWL} y1={bpY - capH / 2} x2={xWL} y2={bpY + capH / 2} stroke={c.secondary} strokeWidth={1} />
+            <line x1={xWU} y1={bpY - capH / 2} x2={xWU} y2={bpY + capH / 2} stroke={c.secondary} strokeWidth={1} />
+            {/* IQR box */}
+            <rect
+              x={xQ1} y={bpY - bpH / 2} width={Math.max(0, xQ3 - xQ1)} height={bpH}
+              fill={c.faint} stroke={c.accent} strokeWidth={1} rx={1}
+            />
+            {/* Median tick */}
+            <line x1={xMed} y1={bpY - bpH / 2} x2={xMed} y2={bpY + bpH / 2} stroke={c.primary} strokeWidth={1.5} />
+            {/* Mean marker (small diamond) */}
+            <polygon
+              points={`${xMn},${bpY - 3} ${xMn + 2.5},${bpY} ${xMn},${bpY + 3} ${xMn - 2.5},${bpY}`}
+              fill={c.mean} opacity={0.8}
+            />
+            {/* Outlier dots */}
+            {dataOutliers.map((v, i) => (
+              <circle key={i} cx={clampX(v)} cy={bpY} r={1.5} fill={c.secondary} opacity={0.5} />
+            ))}
+          </g>
+        )
+      })()}
+
       {visibleMarkers.map((m, i) => {
         const mx = clampX(m.value)
         return (
@@ -123,11 +164,11 @@ export function Histogram({ data, width = 420, height = 220, theme }: HistogramP
               opacity={0.7}
             />
             <polygon points={`${mx},${baseline} ${mx - 3},${baseline + 5} ${mx + 3},${baseline + 5}`} fill={m.color} />
-            <text x={mx} y={baseline + 28} textAnchor="middle" fontSize={9}
+            <text x={mx} y={baseline + 36} textAnchor="middle" fontSize={9}
               fontWeight={m.label === 'median' ? 600 : 400} fill={m.color} fontFamily={f.family}>
               {m.label}
             </text>
-            <text x={mx} y={baseline + 39} textAnchor="middle" fontSize={8.5}
+            <text x={mx} y={baseline + 47} textAnchor="middle" fontSize={8.5}
               fill={m.color} fontFamily={f.family} opacity={0.8}>
               {fmtAxis(m.value)}
             </text>

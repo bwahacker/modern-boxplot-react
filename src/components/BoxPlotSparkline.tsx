@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
-import { fiveNumberSummary, outliers, whiskerBounds, cleanData } from '../stats/descriptive'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
+import { fiveNumberSummary, outliers, whiskerBounds, cleanData, mean as calcMean, stddev as calcStddev } from '../stats/descriptive'
 import { kernelDensity } from '../stats/histogram'
 import { categoricalSummary, isValueCounts } from '../stats/categorical'
 import type { CategoricalSummary, ValueCounts } from '../stats/categorical'
 import { DistributionPopover } from './DistributionPopover'
+import { SparklineTooltip } from './SparklineTooltip'
 import { themes } from '../themes'
 import type { BoxPlotTheme } from '../themes'
 
@@ -23,6 +24,12 @@ const SIZE_PRESETS: Record<BoxPlotSize, { width: number; height: number }> = {
   lg: { width: 180, height: 32 },
 }
 
+// Module-level: only one sparkline tooltip can be visible at a time.
+// When a sparkline becomes hovered, it forcibly closes any other that was
+// left open (e.g. because the browser dropped a mouseleave event during
+// fast cursor movement across a dense grid).
+let activeTooltipClose: (() => void) | null = null
+
 export interface BoxPlotSparklineProps {
   /** Numeric array, string array, or value_counts dict (Record<string, number>) */
   data: number[] | string[] | ValueCounts
@@ -33,6 +40,10 @@ export interface BoxPlotSparklineProps {
   theme?: BoxPlotTheme
   /** Explicit category ordering (e.g. Likert scales). Skips bell-curve optimization. */
   categoryOrder?: string[]
+  /** Title displayed at the top of the popover card (e.g. column name). */
+  title?: string
+  /** Footnote displayed at the bottom of the popover card. */
+  footnote?: string
 }
 
 export function BoxPlotSparkline({
@@ -43,9 +54,51 @@ export function BoxPlotSparkline({
   size = 'md',
   theme = themes.tufte,
   categoryOrder,
+  title,
+  footnote,
 }: BoxPlotSparklineProps) {
   const ref = useRef<SVGSVGElement>(null)
   const [open, setOpen] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const hoverTimer = useRef<number>()
+  // Stable close handler registered in the module-level registry so other
+  // sparklines can force-close this one when they become active.
+  const closeRef = useRef<() => void>(() => {})
+  closeRef.current = () => setHovered(false)
+
+  const onMouseEnter = useCallback(() => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current)
+    hoverTimer.current = window.setTimeout(() => {
+      // Force-close any other sparkline tooltip that's still showing.
+      if (activeTooltipClose && activeTooltipClose !== closeRef.current) {
+        activeTooltipClose()
+      }
+      activeTooltipClose = closeRef.current
+      setHovered(true)
+    }, 200)
+  }, [])
+  const onMouseLeave = useCallback(() => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current)
+    if (activeTooltipClose === closeRef.current) activeTooltipClose = null
+    setHovered(false)
+  }, [])
+
+  // Cleanup on unmount: clear pending timer and release registry slot.
+  useEffect(() => {
+    return () => {
+      if (hoverTimer.current) clearTimeout(hoverTimer.current)
+      if (activeTooltipClose === closeRef.current) activeTooltipClose = null
+    }
+  }, [])
+
+  // When the popover opens, hide the tooltip and release the registry slot.
+  useEffect(() => {
+    if (open) {
+      if (hoverTimer.current) clearTimeout(hoverTimer.current)
+      if (activeTooltipClose === closeRef.current) activeTooltipClose = null
+      setHovered(false)
+    }
+  }, [open])
 
   const preset = SIZE_PRESETS[size]
   const width = widthOverride ?? preset.width
@@ -74,6 +127,22 @@ export function BoxPlotSparkline({
     return { ...fns, whiskerLower: wb.lower, whiskerUpper: wb.upper, outliers: outs }
   }, [data])
 
+  const tooltipData = useMemo(() => {
+    if (!stats || data.length === 0) return null
+    return {
+      n: data.length,
+      min: stats.min,
+      q1: stats.q1,
+      median: stats.median,
+      q3: stats.q3,
+      max: stats.max,
+      mean: calcMean(data),
+      stddev: calcStddev(data),
+      iqr: stats.q3 - stats.q1,
+      outlierCount: stats.outliers.length,
+    }
+  }, [data, stats])
+
   const pad = 6
   const plotWidth = width - pad * 2
   const cy = height / 2
@@ -92,7 +161,13 @@ export function BoxPlotSparkline({
         anchorRef={ref}
         onClose={() => setOpen(false)}
         theme={theme}
+        title={title}
+        footnote={footnote}
       />
+    )
+
+    const catTooltip = hovered && !open && (
+      <SparklineTooltip anchorRef={ref} theme={theme} categoricalData={catSummary} />
     )
 
     if (cats.length === 0) {
@@ -112,6 +187,8 @@ export function BoxPlotSparkline({
           ref={ref}
           style={{ display: 'inline-block', verticalAlign: 'middle', cursor: 'pointer' }}
           onClick={() => setOpen(!open)}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         >
           {cats.map((cat, i) => {
             const bx = pad + i * barW + gap / 2
@@ -135,13 +212,18 @@ export function BoxPlotSparkline({
           })}
         </svg>
         {catPopover}
+        {catTooltip}
       </>
     )
   }
 
   // ── Numeric rendering ───────────────────────────────────────────────
   const popover = open && (
-    <DistributionPopover data={data} anchorRef={ref} onClose={() => setOpen(false)} theme={theme} />
+    <DistributionPopover data={data} anchorRef={ref} onClose={() => setOpen(false)} theme={theme} title={title} footnote={footnote} />
+  )
+
+  const tooltip = hovered && !open && tooltipData && (
+    <SparklineTooltip anchorRef={ref} theme={theme} numericData={tooltipData} />
   )
 
   if (data.length === 0) {
@@ -304,6 +386,8 @@ export function BoxPlotSparkline({
         ref={ref}
         style={{ display: 'inline-block', verticalAlign: 'middle', cursor: 'pointer' }}
         onClick={() => setOpen(!open)}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       >
         {content}
         {stats.outliers.map((v, i) => (
@@ -311,6 +395,7 @@ export function BoxPlotSparkline({
         ))}
       </svg>
       {popover}
+      {tooltip}
     </>
   )
 }

@@ -34,6 +34,10 @@ export interface RenderOptions {
   width?: number
   height?: number
   categoryOrder?: string[]
+  /** Title displayed at the top of the popover card (e.g. column name). */
+  title?: string
+  /** Footnote displayed at the bottom of the popover card. */
+  footnote?: string
 }
 
 const roots = new WeakMap<Element, Root>()
@@ -59,7 +63,7 @@ function render(container: Element | null, options: RenderOptions) {
     roots.set(container, root)
   }
 
-  const { data, variant, size, theme, width, height, categoryOrder } = options
+  const { data, variant, size, theme, width, height, categoryOrder, title, footnote } = options
   const resolvedTheme = resolveTheme(theme)
 
   root.render(
@@ -71,6 +75,8 @@ function render(container: Element | null, options: RenderOptions) {
       width,
       height,
       categoryOrder,
+      title,
+      footnote,
     })
   )
 
@@ -118,6 +124,8 @@ function renderAll(selector: string = '[data-boxplot]') {
       size: (el.getAttribute('data-size') as BoxPlotSize) || undefined,
       theme: (el.getAttribute('data-theme') as keyof typeof themes) || undefined,
       categoryOrder,
+      title: el.getAttribute('data-title') || undefined,
+      footnote: el.getAttribute('data-footnote') || undefined,
     }))
   })
 
