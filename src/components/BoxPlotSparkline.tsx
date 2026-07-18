@@ -44,6 +44,10 @@ export interface BoxPlotSparklineProps {
   title?: string
   /** Footnote displayed at the bottom of the popover card. */
   footnote?: string
+  /** True non-null count for the full column, when `data` is a truncated top-N value_counts dict (e.g. top 25). Displayed as N instead of the sum of the provided categories. */
+  trueTotalCount?: number
+  /** True distinct-value count for the full column, when `data` is a truncated top-N value_counts dict. */
+  trueUniqueCount?: number
 }
 
 export function BoxPlotSparkline({
@@ -56,6 +60,8 @@ export function BoxPlotSparkline({
   categoryOrder,
   title,
   footnote,
+  trueTotalCount,
+  trueUniqueCount,
 }: BoxPlotSparklineProps) {
   const ref = useRef<SVGSVGElement>(null)
   const [open, setOpen] = useState(false)
@@ -110,9 +116,10 @@ export function BoxPlotSparkline({
 
   const catSummary: CategoricalSummary | null = useMemo(() => {
     if (!isCategorical) return null
-    if (isValueCounts(rawData)) return categoricalSummary(rawData, categoryOrder)
-    return categoricalSummary(rawData as string[], categoryOrder)
-  }, [rawData, categoryOrder, isCategorical])
+    const trueCounts = { totalCount: trueTotalCount, uniqueCount: trueUniqueCount }
+    if (isValueCounts(rawData)) return categoricalSummary(rawData, categoryOrder, trueCounts)
+    return categoricalSummary(rawData as string[], categoryOrder, trueCounts)
+  }, [rawData, categoryOrder, isCategorical, trueTotalCount, trueUniqueCount])
 
   const data = useMemo(() => {
     if (isCategorical) return []

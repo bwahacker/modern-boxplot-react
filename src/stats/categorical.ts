@@ -9,12 +9,25 @@ export interface CategoryFrequency {
 
 export interface CategoricalSummary {
   categories: CategoryFrequency[]  // in display order
-  totalCount: number
-  numCategories: number
+  totalCount: number                // sum of counts actually provided (may be a top-N truncation)
+  numCategories: number              // number of distinct categories actually provided
   mode: string
   modeCount: number
   encodedData: number[]            // each observation → its category's position
-  entropy: number                  // Shannon entropy (bits)
+  entropy: number                  // Shannon entropy (bits), computed over the provided categories only
+  /** True non-null count for the full column, if the caller knows it exceeds `totalCount` (e.g. `data` is a top-N slice). */
+  trueTotalCount?: number
+  /** True distinct-value count for the full column, if the caller knows it exceeds `numCategories`. */
+  trueUniqueCount?: number
+  /** True when `trueTotalCount`/`trueUniqueCount` indicate the provided categories are a subset of the full column. */
+  isTruncated: boolean
+}
+
+export interface TrueCounts {
+  /** True non-null count for the full column, when `data` is a truncated top-N slice. */
+  totalCount?: number
+  /** True distinct-value count for the full column, when `data` is a truncated top-N slice. */
+  uniqueCount?: number
 }
 
 // ── Frequency counting ────────────────────────────────────────────────
@@ -108,6 +121,7 @@ export function countsFromValueCounts(vc: ValueCounts): Map<string, number> {
 export function categoricalSummary(
   data: string[] | ValueCounts,
   categoryOrder?: string[],
+  trueCounts?: TrueCounts,
 ): CategoricalSummary {
   const isVC = isValueCounts(data)
   const counts = isVC ? countsFromValueCounts(data) : countFrequencies(data as string[])
@@ -157,6 +171,12 @@ export function categoricalSummary(
     encodedData = encodeCategorical(data as string[], order)
   }
 
+  const trueTotalCount = trueCounts?.totalCount
+  const trueUniqueCount = trueCounts?.uniqueCount
+  const isTruncated =
+    (trueTotalCount !== undefined && trueTotalCount > total) ||
+    (trueUniqueCount !== undefined && trueUniqueCount > order.length)
+
   return {
     categories,
     totalCount: total,
@@ -165,6 +185,9 @@ export function categoricalSummary(
     modeCount,
     encodedData,
     entropy: shannonEntropy(counts, total),
+    trueTotalCount,
+    trueUniqueCount,
+    isTruncated,
   }
 }
 

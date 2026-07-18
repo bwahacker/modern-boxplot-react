@@ -161,7 +161,7 @@ export function SparklineTooltip({ anchorRef, theme, numericData, categoricalDat
           <tbody>
             <tr>
               <td style={labelStyle}>n</td>
-              <td style={valueStyle}>{categoricalData.totalCount.toLocaleString()}</td>
+              <td style={valueStyle}>{(categoricalData.trueTotalCount ?? categoricalData.totalCount).toLocaleString()}</td>
             </tr>
             <tr>
               <td style={labelStyle}>mode</td>
@@ -169,10 +169,10 @@ export function SparklineTooltip({ anchorRef, theme, numericData, categoricalDat
             </tr>
             <tr>
               <td style={labelStyle}>categories</td>
-              <td style={valueStyle}>{categoricalData.numCategories}</td>
+              <td style={valueStyle}>{(categoricalData.trueUniqueCount ?? categoricalData.numCategories).toLocaleString()}</td>
             </tr>
             <tr>
-              <td style={labelStyle}>entropy</td>
+              <td style={labelStyle}>{categoricalData.isTruncated ? `entropy (top ${categoricalData.numCategories})` : 'entropy'}</td>
               <td style={valueStyle}>{categoricalData.entropy.toFixed(2)} bits</td>
             </tr>
           </tbody>

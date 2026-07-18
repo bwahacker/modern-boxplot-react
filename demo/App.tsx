@@ -75,7 +75,7 @@ function generateCategorical(labels: string[], counts: number[], seed: number): 
   return result
 }
 
-const catDatasets: { name: string; desc: string; data: string[] | ValueCounts; categoryOrder?: string[] }[] = [
+const catDatasets: { name: string; desc: string; data: string[] | ValueCounts; categoryOrder?: string[]; trueTotalCount?: number; trueUniqueCount?: number }[] = [
   {
     name: 'Satisfaction survey',
     desc: 'Customer feedback',
@@ -113,6 +113,16 @@ const catDatasets: { name: string; desc: string; data: string[] | ValueCounts; c
     name: 'Language popularity',
     desc: 'value_counts() dict',
     data: { Python: 142, JavaScript: 118, TypeScript: 95, Rust: 47, Go: 63, Java: 82, 'C++': 38 },
+  },
+  {
+    name: 'Phone (top 25)',
+    desc: '1.2M-row column, truncated to top 25 of ~180k unique values',
+    data: Object.fromEntries(
+      [37, 42, 45, 54, 56, 59, 69, 78, 107, 135, 259, 342, 629, 529, 293, 171, 120, 106, 73, 60, 59, 56, 51, 42, 39]
+        .map((count, i) => [`555-01${String(i).padStart(2, '0')}`, count]),
+    ),
+    trueTotalCount: 1_469_403,
+    trueUniqueCount: 182_004,
   },
 ]
 
@@ -242,7 +252,10 @@ export default function App() {
         </thead>
         <tbody>
           {catDatasets.map(ds => {
-            const summary = categoricalSummary(ds.data, ds.categoryOrder)
+            const summary = categoricalSummary(ds.data, ds.categoryOrder, {
+              totalCount: ds.trueTotalCount,
+              uniqueCount: ds.trueUniqueCount,
+            })
             return (
               <tr key={ds.name} style={{ borderBottom: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}` }}>
                 <td style={tdStyle(isDark)}>
@@ -250,7 +263,7 @@ export default function App() {
                   <div style={{ fontSize: 11, color: isDark ? '#475569' : '#94a3b8' }}>{ds.desc}</div>
                 </td>
                 <td style={{ ...tdStyle(isDark), textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {summary.totalCount}
+                  {(summary.trueTotalCount ?? summary.totalCount).toLocaleString()}
                 </td>
                 <td style={tdStyle(isDark)}>
                   <BoxPlotSparkline
@@ -258,13 +271,16 @@ export default function App() {
                     size={size}
                     theme={activeTheme}
                     categoryOrder={ds.categoryOrder}
+                    trueTotalCount={ds.trueTotalCount}
+                    trueUniqueCount={ds.trueUniqueCount}
+                    title={ds.name}
                   />
                 </td>
                 <td style={tdStyle(isDark)}>
                   {summary.mode}
                 </td>
                 <td style={{ ...tdStyle(isDark), textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {summary.numCategories}
+                  {(summary.trueUniqueCount ?? summary.numCategories).toLocaleString()}
                 </td>
               </tr>
             )

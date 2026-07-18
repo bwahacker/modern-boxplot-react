@@ -9,6 +9,8 @@ interface CategoricalStatsSummaryProps {
 export function CategoricalStatsSummary({ summary, theme }: CategoricalStatsSummaryProps) {
   const t = theme.popover
   const f = theme.font
+  const displayTotal = summary.trueTotalCount ?? summary.totalCount
+  const displayCategories = summary.trueUniqueCount ?? summary.numCategories
 
   return (
     <div style={{ padding: '0 4px' }}>
@@ -63,11 +65,23 @@ export function CategoricalStatsSummary({ summary, theme }: CategoricalStatsSumm
         gridTemplateColumns: 'repeat(4, 1fr)',
         gap: '8px 12px',
       }}>
-        <StatCell label="n" value={String(summary.totalCount)} theme={theme} />
-        <StatCell label="categories" value={String(summary.numCategories)} theme={theme} />
+        <StatCell label="n" value={displayTotal.toLocaleString()} theme={theme} />
+        <StatCell label="categories" value={displayCategories.toLocaleString()} theme={theme} />
         <StatCell label="mode" value={summary.mode} theme={theme} />
-        <StatCell label="entropy" value={summary.entropy.toFixed(2) + ' bits'} theme={theme} />
+        <StatCell
+          label={summary.isTruncated ? `entropy (top ${summary.numCategories})` : 'entropy'}
+          value={summary.entropy.toFixed(2) + ' bits'}
+          theme={theme}
+        />
       </div>
+
+      {summary.isTruncated && (
+        <div style={{ fontSize: f.labelSize, color: t.textMuted, lineHeight: 1.4, marginTop: 8 }}>
+          Showing top {summary.numCategories.toLocaleString()} of {displayCategories.toLocaleString()} categories
+          ({summary.totalCount.toLocaleString()} of {displayTotal.toLocaleString()} values). Entropy and bell-curve
+          fit are computed from the categories shown only.
+        </div>
+      )}
     </div>
   )
 }

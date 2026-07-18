@@ -11,4 +11,4 @@ export { matchDistributions } from './stats/distribution-match'
 export type { DistributionMatch } from './stats/distribution-match'
 
 export { categoricalSummary, bellCurveOrder, countFrequencies, isValueCounts } from './stats/categorical'
-export type { CategoryFrequency, CategoricalSummary, ValueCounts } from './stats/categorical'
+export type { CategoryFrequency, CategoricalSummary, ValueCounts, TrueCounts } from './stats/categorical'

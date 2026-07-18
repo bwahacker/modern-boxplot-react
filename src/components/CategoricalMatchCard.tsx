@@ -25,13 +25,14 @@ export function CategoricalMatchCard({ summary, theme }: CategoricalMatchCardPro
           textTransform: 'uppercase' as const,
           color: t.textMuted,
         }}>
-          Bell-curve fit
+          {summary.isTruncated ? `Bell-curve fit (top ${summary.numCategories})` : 'Bell-curve fit'}
         </span>
         <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginTop: 2 }}>
           {Math.round(fit.similarity * 100)}% similarity
         </div>
         <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5, marginTop: 4 }}>
           {fit.explanation}
+          {summary.isTruncated && ' Computed from the categories shown only, not the full column.'}
         </div>
       </div>
     </div>

@@ -38,6 +38,10 @@ export interface RenderOptions {
   title?: string
   /** Footnote displayed at the bottom of the popover card. */
   footnote?: string
+  /** True non-null count for the full column, when `data` is a truncated top-N value_counts dict (e.g. top 25). Displayed as N instead of the sum of the provided categories. */
+  trueTotalCount?: number
+  /** True distinct-value count for the full column, when `data` is a truncated top-N value_counts dict. */
+  trueUniqueCount?: number
 }
 
 const roots = new WeakMap<Element, Root>()
@@ -63,7 +67,7 @@ function render(container: Element | null, options: RenderOptions) {
     roots.set(container, root)
   }
 
-  const { data, variant, size, theme, width, height, categoryOrder, title, footnote } = options
+  const { data, variant, size, theme, width, height, categoryOrder, title, footnote, trueTotalCount, trueUniqueCount } = options
   const resolvedTheme = resolveTheme(theme)
 
   root.render(
@@ -77,6 +81,8 @@ function render(container: Element | null, options: RenderOptions) {
       categoryOrder,
       title,
       footnote,
+      trueTotalCount,
+      trueUniqueCount,
     })
   )
 
@@ -118,6 +124,9 @@ function renderAll(selector: string = '[data-boxplot]') {
     const orderAttr = el.getAttribute('data-category-order')
     const categoryOrder = orderAttr ? orderAttr.split(',').map(s => s.trim()) : undefined
 
+    const trueTotalAttr = el.getAttribute('data-true-total-count')
+    const trueUniqueAttr = el.getAttribute('data-true-unique-count')
+
     handles.push(render(el, {
       data,
       variant: (el.getAttribute('data-variant') as BoxPlotVariant) || undefined,
@@ -126,6 +135,8 @@ function renderAll(selector: string = '[data-boxplot]') {
       categoryOrder,
       title: el.getAttribute('data-title') || undefined,
       footnote: el.getAttribute('data-footnote') || undefined,
+      trueTotalCount: trueTotalAttr ? Number(trueTotalAttr) : undefined,
+      trueUniqueCount: trueUniqueAttr ? Number(trueUniqueAttr) : undefined,
     }))
   })
 
