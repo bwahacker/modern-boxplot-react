@@ -20,11 +20,16 @@ export function CategoricalBarChart({
   height = 220,
   theme,
 }: CategoricalBarChartProps) {
-  const pad = { top: 12, right: 16, bottom: 52, left: 16 }
+  const pad = { top: 12, right: 16, bottom: 56, left: 16 }
   const plotW = width - pad.left - pad.right
   const plotH = height - pad.top - pad.bottom
   const c = theme.colors
   const f = theme.font
+  // SVG chart text defaults to the theme's label size rather than small
+  // hardcoded pixel values, so it scales with the rest of the UI.
+  const axisFontSize = f.labelSize
+  const countFontSize = f.labelSize
+  const charWidth = axisFontSize * 0.62
 
   const cats = summary.categories
   const maxCount = Math.max(...cats.map(ct => ct.count), 1)
@@ -36,6 +41,12 @@ export function CategoricalBarChart({
   const barW = plotW / cats.length
   const gap = Math.max(1, barW * 0.15)
   const baseline = pad.top + plotH
+
+  // Hide per-bar count numbers entirely rather than let them overlap when
+  // there are too many narrow bars to fit them (the frequency table below
+  // still lists every exact count).
+  const maxCountLen = Math.max(...cats.map(ct => String(ct.count).length))
+  const showCountLabels = maxCountLen * charWidth + 4 < barW
 
   // Fitted discrete Gaussian curve points
   const gaussianPoints: { x: number; y: number }[] = useMemo(() => {
@@ -67,9 +78,14 @@ export function CategoricalBarChart({
 
   // Determine if we need to rotate labels
   const maxLabelLen = Math.max(...cats.map(ct => ct.label.length))
-  const charWidth = 5.5 // approximate px per char at fontSize 9
   const labelFits = maxLabelLen * charWidth < barW - 2
   const rotateLabels = !labelFits
+
+  // Even rotated, labels packed edge-to-edge onto narrow bars just overlap
+  // each other instead. Once bars get too narrow for that, thin them out
+  // (show every Nth one, always keeping the mode) rather than crowd them.
+  const minRotatedSpacing = axisFontSize * 2.2
+  const labelStep = rotateLabels ? Math.max(1, Math.ceil(minRotatedSpacing / barW)) : 1
 
   return (
     <svg width={width} height={height} style={{ display: 'block' }}>
@@ -93,16 +109,18 @@ export function CategoricalBarChart({
               rx={1}
             />
             {/* Count label above bar */}
-            <text
-              x={bx + bw / 2}
-              y={by - 3}
-              textAnchor="middle"
-              fontSize={8}
-              fill={c.secondary}
-              fontFamily={f.family}
-            >
-              {cat.count}
-            </text>
+            {showCountLabels && (
+              <text
+                x={bx + bw / 2}
+                y={by - 3}
+                textAnchor="middle"
+                fontSize={countFontSize}
+                fill={c.secondary}
+                fontFamily={f.family}
+              >
+                {cat.count}
+              </text>
+            )}
           </g>
         )
       })}
@@ -121,9 +139,11 @@ export function CategoricalBarChart({
 
       {/* Category labels */}
       {cats.map((cat, i) => {
+        const isMode = cat.label === summary.mode
+        if (i % labelStep !== 0 && !isMode) return null
+
         const cx = pad.left + (i + 0.5) * barW
         const label = truncate(cat.label, rotateLabels ? 12 : 8)
-        const isMode = cat.label === summary.mode
 
         if (rotateLabels) {
           return (
@@ -132,7 +152,7 @@ export function CategoricalBarChart({
               x={cx}
               y={baseline + 8}
               textAnchor="end"
-              fontSize={8.5}
+              fontSize={axisFontSize}
               fill={isMode ? c.primary : c.secondary}
               fontWeight={isMode ? 600 : 400}
               fontFamily={f.family}
@@ -149,7 +169,7 @@ export function CategoricalBarChart({
             x={cx}
             y={baseline + 14}
             textAnchor="middle"
-            fontSize={9}
+            fontSize={axisFontSize}
             fill={isMode ? c.primary : c.secondary}
             fontWeight={isMode ? 600 : 400}
             fontFamily={f.family}

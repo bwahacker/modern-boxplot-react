@@ -25,6 +25,11 @@ export function Histogram({ data, width = 420, height = 232, theme }: HistogramP
   const plotH = height - pad.top - pad.bottom
   const c = theme.colors
   const f = theme.font
+  // SVG chart text defaults to the theme's label size rather than small
+  // hardcoded pixel values, so it scales with the rest of the UI.
+  const tickFontSize = f.labelSize
+  const markerLabelFontSize = f.labelSize
+  const markerValueFontSize = f.labelSize - 0.5
 
   const bins = useMemo(() => binData(data), [data])
   const kde = useMemo(() => kernelDensity(data, 80), [data])
@@ -65,15 +70,22 @@ export function Histogram({ data, width = 420, height = 232, theme }: HistogramP
     { value: fns.max, label: 'max', color: c.secondary, priority: 1 },
   ]
 
+  // Markers whose labels would collide are staggered onto extra rows below
+  // the axis instead of being dropped - every marker stays visible.
   const sortedMarkers = [...markers].sort((a, b) => b.priority - a.priority)
-  const placedX: number[] = []
-  const visibleMarkers = sortedMarkers.filter(m => {
+  const rowHeight = 22
+  const minGap = 34
+  const rowsX: number[][] = []
+  const placedMarkers = sortedMarkers.map(m => {
     const mx = clampX(m.value)
-    if (placedX.some(px => Math.abs(px - mx) < 28)) return false
-    placedX.push(mx)
-    return true
+    let row = 0
+    while (rowsX[row] && rowsX[row].some(px => Math.abs(px - mx) < minGap)) row++
+    if (!rowsX[row]) rowsX[row] = []
+    rowsX[row].push(mx)
+    return { ...m, x: mx, row }
   })
-  visibleMarkers.sort((a, b) => a.value - b.value)
+  placedMarkers.sort((a, b) => a.value - b.value)
+  const maxRow = rowsX.length - 1
 
   const tickCount = 5
   const rawStep = xRange / (tickCount - 1)
@@ -84,8 +96,10 @@ export function Histogram({ data, width = 420, height = 232, theme }: HistogramP
   const ticks: number[] = []
   for (let t = firstTick; t <= xMax; t += niceStep) ticks.push(t)
 
+  const svgHeight = height + maxRow * rowHeight
+
   return (
-    <svg width={width} height={height} style={{ display: 'block' }}>
+    <svg width={width} height={svgHeight} style={{ display: 'block' }}>
       {bins.map((bin, i) => {
         const bx = xScale(bin.x0)
         const bw = xScale(bin.x1) - bx
@@ -106,7 +120,7 @@ export function Histogram({ data, width = 420, height = 232, theme }: HistogramP
         return (
           <g key={i}>
             <line x1={tx} y1={baseline} x2={tx} y2={baseline + 4} stroke={c.secondary} strokeWidth={0.75} />
-            <text x={tx} y={baseline + 14} textAnchor="middle" fontSize={9} fill={c.secondary} fontFamily={f.family}>
+            <text x={tx} y={baseline + 14} textAnchor="middle" fontSize={tickFontSize} fill={c.secondary} fontFamily={f.family}>
               {fmtAxis(tick)}
             </text>
           </g>
@@ -152,23 +166,23 @@ export function Histogram({ data, width = 420, height = 232, theme }: HistogramP
         )
       })()}
 
-      {visibleMarkers.map((m, i) => {
-        const mx = clampX(m.value)
+      {placedMarkers.map((m, i) => {
+        const rowY = baseline + m.row * rowHeight
         return (
           <g key={i}>
             <line
-              x1={mx} y1={pad.top} x2={mx} y2={baseline}
+              x1={m.x} y1={pad.top} x2={m.x} y2={baseline}
               stroke={m.color}
               strokeWidth={m.label === 'median' ? 1.5 : 1}
               strokeDasharray={m.label === 'mean' ? '3,2' : m.label === 'median' ? 'none' : '2,3'}
               opacity={0.7}
             />
-            <polygon points={`${mx},${baseline} ${mx - 3},${baseline + 5} ${mx + 3},${baseline + 5}`} fill={m.color} />
-            <text x={mx} y={baseline + 36} textAnchor="middle" fontSize={9}
+            <polygon points={`${m.x},${baseline} ${m.x - 3},${baseline + 5} ${m.x + 3},${baseline + 5}`} fill={m.color} />
+            <text x={m.x} y={rowY + 36} textAnchor="middle" fontSize={markerLabelFontSize}
               fontWeight={m.label === 'median' ? 600 : 400} fill={m.color} fontFamily={f.family}>
               {m.label}
             </text>
-            <text x={mx} y={baseline + 47} textAnchor="middle" fontSize={8.5}
+            <text x={m.x} y={rowY + 47} textAnchor="middle" fontSize={markerValueFontSize}
               fill={m.color} fontFamily={f.family} opacity={0.8}>
               {fmtAxis(m.value)}
             </text>
