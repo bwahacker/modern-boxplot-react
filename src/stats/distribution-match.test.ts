@@ -99,6 +99,21 @@ describe('matchDistributions - edge cases', () => {
     }
   })
 
+  it('returns no candidates (but does not throw) for all-zero data', () => {
+    // stddev=0 excludes Normal/Bimodal, mean=0 excludes Exponential, 0 is not
+    // >0 so Log-Normal is excluded, and max===min excludes Uniform.
+    expect(matchDistributions([0, 0, 0, 0, 0, 0, 0, 0])).toEqual([])
+  })
+
+  it('excludes Log-Normal and Exponential for negative data, but keeps Normal', () => {
+    const data = generateNormal(300, -50, 10, 1) // ~5 sigma from zero: reliably all-negative
+    const matches = matchDistributions(data)
+    const names = matches.map(m => m.name)
+    expect(names).not.toContain('Log-Normal')
+    expect(names).not.toContain('Exponential')
+    expect(names).toContain('Normal')
+  })
+
   it('sorts candidates by similarity descending', () => {
     const data = generateNormal(300, 0, 1, 7)
     const matches = matchDistributions(data)

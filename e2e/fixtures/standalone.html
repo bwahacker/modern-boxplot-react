@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>modern-boxplot standalone smoke test</title>
+</head>
+<body>
+  <div
+    data-boxplot
+    data-values="1,2,3,4,5,6,7,8,9,10,11,12"
+    data-title="Numeric example"
+  ></div>
+
+  <div
+    data-boxplot
+    data-values="555-0100,555-0100,555-0100,555-0101,555-0101,555-0102"
+    data-title="Truncated phone example"
+    data-true-total-count="1469403"
+    data-true-unique-count="182004"
+  ></div>
+
+  <script src="../../dist/modern-boxplot.standalone.js"></script>
+  <script>
+    window.ModernBoxPlot.renderAll()
+  </script>
+</body>
+</html>

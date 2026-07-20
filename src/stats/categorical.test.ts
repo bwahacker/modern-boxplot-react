@@ -64,6 +64,15 @@ describe('categoricalSummary', () => {
     )
     expect(summary.categories.map(c => c.label)).toEqual(['Low', 'Medium', 'High'])
   })
+
+  it('handles an empty dict without throwing', () => {
+    const summary = categoricalSummary({})
+    expect(summary.totalCount).toBe(0)
+    expect(summary.numCategories).toBe(0)
+    expect(summary.modeCount).toBe(0)
+    expect(summary.entropy).toBe(0)
+    expect(summary.categories).toEqual([])
+  })
 })
 
 describe('countFrequencies', () => {
