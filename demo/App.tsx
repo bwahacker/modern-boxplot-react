@@ -48,6 +48,17 @@ function generateBimodal(n: number, seed: number): number[] {
   })
 }
 
+// Zero-inflated: mostly zero, with a rare, large exponential-tailed value -
+// e.g. a "count" column where most rows don't apply. Q1/median/Q3 are all
+// 0, so a linear histogram is just a spike and a flat line.
+function generateZeroInflated(n: number, zeroProb: number, seed: number): number[] {
+  const rand = mulberry32(seed)
+  return Array.from({ length: n }, () => {
+    if (rand() < zeroProb) return 0
+    return -Math.log(rand() || 0.0001) * 60
+  })
+}
+
 // ── Datasets ───────────────────────────────────────────────────────────
 
 const datasets = [
@@ -57,6 +68,7 @@ const datasets = [
   { name: 'Sensor readings', desc: 'Temperature (°C)', data: generateUniform(400, 18, 82, 256) },
   { name: 'Wait times', desc: 'Queue duration (min)', data: generateExponential(300, 0.15, 77) },
   { name: 'City populations', desc: 'Two-cluster (k)', data: generateBimodal(250, 314) },
+  { name: 'trailer_dryvan', desc: 'Zero-inflated count column', data: generateZeroInflated(2000, 0.97, 314) },
 ]
 
 // ── Categorical datasets ──────────────────────────────────────────────

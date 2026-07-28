@@ -24,6 +24,8 @@ interface DistributionPopoverProps {
 }
 
 const POPOVER_WIDTH = 460
+const FULLSCREEN_MARGIN = 24
+const FULLSCREEN_MAX_WIDTH = 1100
 
 export function DistributionPopover({ data, categoricalSummary: catSummary, anchorRef, onClose, theme, title, footnote }: DistributionPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null)
@@ -34,6 +36,21 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
   const matches = useMemo(() => data ? matchDistributions(data) : [], [data])
 
   const [measured, setMeasured] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [contentWidth, setContentWidth] = useState(POPOVER_WIDTH - 32)
+
+  // Charts size themselves to the popover's actual content width, so they
+  // grow when the fullscreen panel gives them more room.
+  useEffect(() => {
+    const el = popoverRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width
+      if (w) setContentWidth(w - 32)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const getPosition = useCallback(() => {
     if (!anchorRef.current) return { top: 0, left: 0, maxHeight: undefined as number | undefined }
@@ -120,7 +137,7 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
       <div
         ref={popoverRef}
         style={{
-          position: 'fixed', top: pos.top, left: pos.left, width: POPOVER_WIDTH,
+          position: 'fixed',
           background: t.bg,
           border: `1.5px solid ${t.border}`,
           borderRadius: 6,
@@ -129,9 +146,52 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
           fontFamily: theme.font.family,
           boxShadow: t.shadow,
           animation: 'popover-in 0.15s ease-out',
-          ...(pos.maxHeight ? { maxHeight: pos.maxHeight, overflowY: 'auto' as const } : {}),
+          overflowY: 'auto',
+          ...(fullscreen
+            ? {
+              inset: FULLSCREEN_MARGIN,
+              width: 'auto', height: 'auto',
+              maxWidth: FULLSCREEN_MAX_WIDTH, margin: '0 auto',
+            }
+            : {
+              top: pos.top, left: pos.left, width: POPOVER_WIDTH,
+              ...(pos.maxHeight ? { maxHeight: pos.maxHeight } : {}),
+            }),
         }}
       >
+        <button
+          onClick={() => setFullscreen(v => !v)}
+          style={{
+            position: 'absolute', top: 8, right: 38,
+            width: 24, height: 24,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'none',
+            border: `1px solid ${t.rule}`,
+            borderRadius: 4, cursor: 'pointer',
+            color: t.textMuted, padding: 0,
+          }}
+          aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+          title={fullscreen ? 'Exit full screen' : 'Full screen'}
+        >
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+            {fullscreen ? (
+              <>
+                <path d="M4 1v3H1" />
+                <path d="M8 1v3h3" />
+                <path d="M11 8H8v3" />
+                <path d="M1 8h3v3" />
+              </>
+            ) : (
+              <>
+                <path d="M1 4V1h3" />
+                <path d="M8 1h3v3" />
+                <path d="M11 8v3H8" />
+                <path d="M4 11H1V8" />
+              </>
+            )}
+          </svg>
+        </button>
+
         <button
           onClick={onClose}
           style={{
@@ -149,18 +209,19 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
           &times;
         </button>
 
-        {title && (
-          <div style={{
-            fontSize: 14, fontWeight: 600, color: t.text,
-            marginBottom: 12, paddingRight: 20,
-          }}>
-            {title}
-          </div>
-        )}
+        {/* Always reserves a header row (even without a title) so the header
+            buttons never end up overlapping - and stealing clicks from -
+            full-width chart content that would otherwise start right underneath them. */}
+        <div style={{
+          fontSize: 14, fontWeight: 600, color: t.text,
+          minHeight: 24, marginBottom: title ? 12 : 8, paddingRight: 50,
+        }}>
+          {title}
+        </div>
 
         {isCategorical && catSummary ? (
           <>
-            <CategoricalBarChart summary={catSummary} width={POPOVER_WIDTH - 32} height={220} theme={theme} />
+            <CategoricalBarChart summary={catSummary} width={contentWidth} height={fullscreen ? 420 : 220} theme={theme} />
             <hr style={ruleStyle} />
             <CategoricalStatsSummary summary={catSummary} theme={theme} />
             <hr style={ruleStyle} />
@@ -168,7 +229,7 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
           </>
         ) : data && stats ? (
           <>
-            <Histogram data={data} width={POPOVER_WIDTH - 32} height={220} theme={theme} />
+            <Histogram data={data} width={contentWidth} height={fullscreen ? 420 : 220} theme={theme} />
             <hr style={ruleStyle} />
             <StatsSummary stats={stats} theme={theme} />
             <hr style={ruleStyle} />

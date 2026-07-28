@@ -101,6 +101,12 @@ function bimodalExplanation(mu1: number, mu2: number): string {
   return `Two distinct clusters of values, centered near ${fmt(mu1)} and ${fmt(mu2)}.`
 }
 
+function pointMassExplanation(value: number, proportion: number, n: number): string {
+  const pct = (proportion * 100).toFixed(0)
+  const at = value === 0 ? 'exactly zero' : `exactly ${fmt(value)}`
+  return `${pct}% of the ${n.toLocaleString()} values are ${at}; the rest are scattered, often as rare extreme outliers. None of the standard continuous shapes fit a spike like this - treat it as its own case rather than forcing a bell curve, exponential, etc. onto it.`
+}
+
 // ── Bimodal shape detection ─────────────────────────────────────────────
 // Splitting any unimodal (or uniform) sample at its median and fitting a
 // normal to each half will always yield two different means — that alone
@@ -178,6 +184,31 @@ export function matchDistributions(data: number[]): DistributionMatch[] {
   const max = sorted[sorted.length - 1]
 
   const candidates: DistributionMatch[] = []
+
+  // Point mass / degenerate spike: a large share of the data sitting at one
+  // exact value (e.g. zero-inflated counts) can't be represented by any of
+  // the continuous shapes below - name that shape directly instead of
+  // forcing a misleadingly confident "Normal" (or similar) label onto it.
+  const exactCounts = new Map<number, number>()
+  for (const v of data) exactCounts.set(v, (exactCounts.get(v) ?? 0) + 1)
+  let modeValue = sorted[0]
+  let modeCount = 0
+  for (const [v, cnt] of exactCounts) {
+    if (cnt > modeCount) { modeValue = v; modeCount = cnt }
+  }
+  const modeProportion = modeCount / data.length
+  const POINT_MASS_THRESHOLD = 0.4
+  if (modeProportion >= POINT_MASS_THRESHOLD) {
+    const isConstant = modeProportion === 1
+    candidates.push({
+      name: isConstant ? 'Constant' : modeValue === 0 ? 'Zero-inflated' : 'Point mass',
+      similarity: modeProportion,
+      explanation: isConstant
+        ? `Every one of the ${data.length.toLocaleString()} values is exactly ${fmt(modeValue)} - there is no spread to characterize as a shape.`
+        : pointMassExplanation(modeValue, modeProportion, data.length),
+      params: { value: modeValue, proportion: modeProportion },
+    })
+  }
 
   // Normal
   if (s > 0) {

@@ -85,6 +85,40 @@ describe('matchDistributions - other known shapes', () => {
   })
 })
 
+describe('matchDistributions - regression: zero-inflated / point-mass data', () => {
+  // None of Normal/Log-Normal/Exponential/Uniform/Bimodal can represent "most
+  // values are exactly one number, plus a few extreme outliers" - the matcher
+  // used to be forced into presenting whichever of those uniformly-bad fits
+  // scored highest (e.g. "Normal distribution, 5% similarity") as if it were
+  // a confident, meaningful match. It should now name the shape directly.
+  it('recognizes zero-inflated data (mostly zero, rare huge outliers) instead of a misleading low-confidence "Normal"', () => {
+    // Mirrors a real "crashes per million miles" column: ~98% exactly zero,
+    // a couple of extreme outliers.
+    const data = [...Array(99).fill(0), 1_000_000, 5_000_000]
+    const matches = matchDistributions(data)
+    expect(matches[0].name).toBe('Zero-inflated')
+    expect(matches[0].similarity).toBeCloseTo(99 / 101, 5)
+    // The old, misleading top candidate should score far below it now.
+    const normal = matches.find(m => m.name === 'Normal')
+    expect(normal).toBeDefined()
+    expect(normal!.similarity).toBeLessThan(matches[0].similarity)
+  })
+
+  it('names a non-zero repeated value "Point mass" rather than "Zero-inflated"', () => {
+    const data = [...Array(50).fill(7), 1, 2, 3, 900, 1000]
+    const matches = matchDistributions(data)
+    expect(matches[0].name).toBe('Point mass')
+  })
+
+  it('does not fire for ordinary continuous data with no dominant repeated value', () => {
+    const data = generateNormal(300, 50, 10, 1)
+    const names = matchDistributions(data).map(m => m.name)
+    expect(names).not.toContain('Zero-inflated')
+    expect(names).not.toContain('Point mass')
+    expect(names).not.toContain('Constant')
+  })
+})
+
 describe('matchDistributions - edge cases', () => {
   it('returns an "Insufficient data" placeholder below 4 points', () => {
     const matches = matchDistributions([1, 2, 3])
@@ -99,10 +133,14 @@ describe('matchDistributions - edge cases', () => {
     }
   })
 
-  it('returns no candidates (but does not throw) for all-zero data', () => {
+  it('names an all-identical dataset "Constant" at 100% similarity rather than returning nothing', () => {
     // stddev=0 excludes Normal/Bimodal, mean=0 excludes Exponential, 0 is not
-    // >0 so Log-Normal is excluded, and max===min excludes Uniform.
-    expect(matchDistributions([0, 0, 0, 0, 0, 0, 0, 0])).toEqual([])
+    // >0 so Log-Normal is excluded, and max===min excludes Uniform - the
+    // point-mass detector is the only candidate left, and correctly so.
+    const matches = matchDistributions([0, 0, 0, 0, 0, 0, 0, 0])
+    expect(matches).toHaveLength(1)
+    expect(matches[0].name).toBe('Constant')
+    expect(matches[0].similarity).toBe(1)
   })
 
   it('excludes Log-Normal and Exponential for negative data, but keeps Normal', () => {
