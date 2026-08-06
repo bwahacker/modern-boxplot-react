@@ -10,6 +10,7 @@ import {
   whiskerBounds,
   descriptiveStats,
   cleanData,
+  percentileRank,
 } from './descriptive'
 
 describe('fiveNumberSummary', () => {
@@ -114,5 +115,45 @@ describe('descriptiveStats', () => {
 describe('cleanData', () => {
   it('drops NaN and Infinity, keeps finite numbers', () => {
     expect(cleanData([1, NaN, 2, Infinity, -Infinity, 3])).toEqual([1, 2, 3])
+  })
+})
+
+describe('percentileRank', () => {
+  const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+  it('returns NaN for empty data', () => {
+    expect(percentileRank([], 5)).toBeNaN()
+  })
+
+  it('returns NaN for a non-finite value', () => {
+    expect(percentileRank(data, NaN)).toBeNaN()
+    expect(percentileRank(data, Infinity)).toBeNaN()
+  })
+
+  it('returns 0 for a value below the entire range', () => {
+    expect(percentileRank(data, -5)).toBe(0)
+  })
+
+  it('returns 100 for a value above the entire range', () => {
+    expect(percentileRank(data, 50)).toBe(100)
+  })
+
+  it('does not place the exact minimum at 0 (mean-rank convention)', () => {
+    // 0 values strictly below, 1 tied at the value -> (0 + 0.5)/10*100 = 5
+    expect(percentileRank(data, 1)).toBeCloseTo(5, 10)
+  })
+
+  it('does not place the exact maximum at 100', () => {
+    // 9 below, 1 tied -> (9 + 0.5)/10*100 = 95
+    expect(percentileRank(data, 10)).toBeCloseTo(95, 10)
+  })
+
+  it('returns 50 for the midpoint of a tie group', () => {
+    // data=[1,2,2,2,3], value=2: 1 below, 3 tied -> (1 + 1.5)/5*100 = 50
+    expect(percentileRank([1, 2, 2, 2, 3], 2)).toBeCloseTo(50, 10)
+  })
+
+  it('returns 50 for all-identical data at that value', () => {
+    expect(percentileRank([5, 5, 5, 5], 5)).toBeCloseTo(50, 10)
   })
 })

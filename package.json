@@ -17,6 +17,7 @@
     "dist"
   ],
   "scripts": {
+    "prepare": "npm run build",
     "dev": "vite serve --config vite.demo.config.ts",
     "build": "tsc --noEmit && vite build && vite build --config vite.standalone.config.ts",
     "build:lib": "tsc --noEmit && vite build",

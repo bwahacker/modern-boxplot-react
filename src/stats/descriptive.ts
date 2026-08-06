@@ -136,3 +136,21 @@ export function descriptiveStats(data: number[]): DescriptiveStats {
 export function cleanData(data: number[]): number[] {
   return data.filter(x => Number.isFinite(x))
 }
+
+/**
+ * Percentile rank of `value` within `data`, using the midpoint/mean-rank
+ * convention: (countBelow + 0.5 * countEqual) / n * 100. A value at the exact
+ * min or max of `data` does NOT land at 0/100 (that's the mean-rank
+ * definition working as intended, not a bug) - e.g. for data=[1..10],
+ * percentileRank(data, 1) is 5, not 0.
+ */
+export function percentileRank(data: number[], value: number): number {
+  if (data.length === 0 || !Number.isFinite(value)) return NaN
+  let countBelow = 0
+  let countEqual = 0
+  for (const v of data) {
+    if (v < value) countBelow++
+    else if (v === value) countEqual++
+  }
+  return ((countBelow + 0.5 * countEqual) / data.length) * 100
+}

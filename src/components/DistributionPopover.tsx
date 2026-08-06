@@ -1,14 +1,17 @@
-import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useCallback, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { descriptiveStats } from '../stats/descriptive'
 import { matchDistributions } from '../stats/distribution-match'
+import { categoricalSummary } from '../stats/categorical'
 import { Histogram } from './Histogram'
 import { StatsSummary } from './StatsSummary'
 import { DistributionMatchCard } from './DistributionMatchCard'
+import { DistributionDiffSummary } from './DistributionDiffSummary'
 import { CategoricalBarChart } from './CategoricalBarChart'
 import { CategoricalStatsSummary } from './CategoricalStatsSummary'
 import { CategoricalMatchCard } from './CategoricalMatchCard'
-import type { CategoricalSummary } from '../stats/categorical'
+import { CategoricalDiffSummary } from './CategoricalDiffSummary'
+import type { CategoricalSummary, TrueCounts, ValueCounts } from '../stats/categorical'
 import type { BoxPlotTheme } from '../themes'
 
 interface DistributionPopoverProps {
@@ -19,21 +22,64 @@ interface DistributionPopoverProps {
   theme: BoxPlotTheme
   /** Title displayed at the top of the popover card. */
   title?: string
+  /** Plain-language context shown under the title. */
+  description?: string
   /** Footnote displayed at the bottom of the popover card. */
   footnote?: string
+  /** A second numeric snapshot to compare against `data`. */
+  compareData?: number[]
+  /** A second categorical snapshot (raw, not yet summarized) to compare against `categoricalSummary`. */
+  compareCategoricalData?: string[] | ValueCounts
+  /** Shared category order (see `mergedCategoryOrder`) used to compute the compare-side summary so bars/rows line up with the primary side. */
+  compareCategoryOrder?: string[]
+  compareTrueCounts?: TrueCounts
+  /** Label for the primary snapshot, shown only when comparing. Defaults to "Current". */
+  label?: string
+  /** Label for the comparison snapshot, shown only when comparing. Defaults to "Comparison". */
+  compareLabel?: string
+  /** Numeric highlight value, passed straight through to Histogram. */
+  highlightValue?: number
+  /** Categorical highlight, passed straight through to CategoricalBarChart. */
+  highlightCategory?: string
+  /** Pre-resolved highlight label text (percentile framing already applied upstream in BoxPlotSparkline). */
+  highlightLabel?: string
+  /** Overlay a fitted Gaussian curve on the categorical bar chart. Off by default. */
+  showFitCurve?: boolean
+  /** Show the KDE density curve on the numeric histogram. Defaults to true. */
+  showDensityCurve?: boolean
+  /** Show the best-fit distribution card / shape-match verdict. Defaults to true. */
+  showDistributionMatch?: boolean
 }
 
 const POPOVER_WIDTH = 460
 const FULLSCREEN_MARGIN = 24
 const FULLSCREEN_MAX_WIDTH = 1100
+const DEFAULT_LABEL = 'Current'
+const DEFAULT_COMPARE_LABEL = 'Comparison'
 
-export function DistributionPopover({ data, categoricalSummary: catSummary, anchorRef, onClose, theme, title, footnote }: DistributionPopoverProps) {
+export function DistributionPopover({
+  data, categoricalSummary: catSummary, anchorRef, onClose, theme, title, description, footnote,
+  compareData, compareCategoricalData, compareCategoryOrder, compareTrueCounts,
+  label = DEFAULT_LABEL, compareLabel = DEFAULT_COMPARE_LABEL,
+  highlightValue, highlightCategory, highlightLabel, showFitCurve,
+  showDensityCurve = true, showDistributionMatch = true,
+}: DistributionPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null)
   const t = theme.popover
   const isCategorical = !!catSummary
 
   const stats = useMemo(() => data ? descriptiveStats(data) : null, [data])
   const matches = useMemo(() => data ? matchDistributions(data) : [], [data])
+
+  // Compare-side computation is entirely lazy - it only runs once the
+  // popover is actually open, mirroring how the primary side's stats/matches
+  // already work above.
+  const compareStats = useMemo(() => compareData ? descriptiveStats(compareData) : null, [compareData])
+  const compareMatches = useMemo(() => compareData ? matchDistributions(compareData) : [], [compareData])
+  const compareCatSummary = useMemo(() => {
+    if (!compareCategoricalData) return null
+    return categoricalSummary(compareCategoricalData, compareCategoryOrder, compareTrueCounts)
+  }, [compareCategoricalData, compareCategoryOrder, compareTrueCounts])
 
   const [measured, setMeasured] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
@@ -63,8 +109,17 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
     if (left < margin) left = margin
     if (left + POPOVER_WIDTH > window.innerWidth - margin) left = window.innerWidth - POPOVER_WIDTH - margin
 
-    // Vertical: measure popover if available, otherwise estimate
-    const popoverH = popoverRef.current?.offsetHeight ?? 500
+    // Vertical: measure popover if available, otherwise estimate. Uses
+    // scrollHeight (the true content height, ignoring any overflow clipping)
+    // rather than offsetHeight (the current, possibly maxHeight-constrained
+    // rendered height) - offsetHeight here would be self-referential: once a
+    // maxHeight constrains the popover, offsetHeight reflects THAT constraint
+    // rather than the actual content, so re-deriving maxHeight from it on the
+    // next render flip-flops between "fits, no constraint" and "doesn't fit,
+    // constrained" every time this recomputes (visible as the popover
+    // flashing between two sizes right after opening, worse with more
+    // content - e.g. many categorical bars pushing a long frequency table).
+    const popoverH = popoverRef.current?.scrollHeight ?? 500
     const spaceBelow = window.innerHeight - rect.bottom - gap
     const spaceAbove = rect.top - gap
 
@@ -92,8 +147,14 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
 
   const pos = getPosition()
 
-  // Re-measure after first render to get actual popover height
-  useEffect(() => {
+  // Re-measure after first render to get actual popover height. Uses
+  // useLayoutEffect (not useEffect) so the correction happens synchronously
+  // before the browser paints - a regular useEffect runs post-paint, which
+  // means the browser would actually paint the wrong (unconstrained-height,
+  // pre-measurement) layout for one frame before snapping to the corrected
+  // one - a visible "flash," worse the taller the initial guess is off by
+  // (e.g. a popover with many categorical bars and a long frequency table).
+  useLayoutEffect(() => {
     if (!measured && popoverRef.current) {
       setMeasured(true)
     }
@@ -149,9 +210,19 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
           overflowY: 'auto',
           ...(fullscreen
             ? {
-              inset: FULLSCREEN_MARGIN,
-              width: 'auto', height: 'auto',
-              maxWidth: FULLSCREEN_MAX_WIDTH, margin: '0 auto',
+              // Only top/left/right are pinned - `bottom` is deliberately
+              // left unset. Pinning all four (as `inset` would) forces
+              // height:auto to solve as "fill exactly to the viewport
+              // edge" per the CSS box model for absolutely-positioned
+              // elements, regardless of actual content - which is what
+              // produced a full-height panel with a large dead void below
+              // short content. Leaving `bottom` unset lets height stay
+              // intrinsic to content, capped by maxHeight (with the
+              // overflowY:auto already set above) for the rare case
+              // content is taller than the viewport.
+              top: FULLSCREEN_MARGIN, left: FULLSCREEN_MARGIN, right: FULLSCREEN_MARGIN,
+              width: 'auto', maxWidth: FULLSCREEN_MAX_WIDTH, margin: '0 auto',
+              maxHeight: `calc(100vh - ${FULLSCREEN_MARGIN * 2}px)`,
             }
             : {
               top: pos.top, left: pos.left, width: POPOVER_WIDTH,
@@ -213,27 +284,71 @@ export function DistributionPopover({ data, categoricalSummary: catSummary, anch
             buttons never end up overlapping - and stealing clicks from -
             full-width chart content that would otherwise start right underneath them. */}
         <div style={{
-          fontSize: 14, fontWeight: 600, color: t.text,
-          minHeight: 24, marginBottom: title ? 12 : 8, paddingRight: 50,
+          fontSize: fullscreen ? 18 : 14, fontWeight: 600, color: t.text,
+          minHeight: 24, marginBottom: title || description ? 4 : 8, paddingRight: 50,
         }}>
           {title}
         </div>
 
+        {description && (
+          <div style={{
+            fontSize: fullscreen ? 14 : 12, color: t.textMuted, lineHeight: 1.4,
+            marginBottom: 12,
+          }}>
+            {description}
+          </div>
+        )}
+
         {isCategorical && catSummary ? (
           <>
-            <CategoricalBarChart summary={catSummary} width={contentWidth} height={fullscreen ? 420 : 220} theme={theme} />
+            <CategoricalBarChart
+              summary={catSummary} compareSummary={compareCatSummary ?? undefined}
+              width={contentWidth} height={fullscreen ? 480 : 220} theme={theme}
+              label={label} compareLabel={compareLabel}
+              highlightCategory={highlightCategory} highlightLabel={highlightLabel}
+              showFitCurve={showFitCurve} fullscreen={fullscreen}
+            />
             <hr style={ruleStyle} />
-            <CategoricalStatsSummary summary={catSummary} theme={theme} />
+            <CategoricalStatsSummary
+              summary={catSummary} compareSummary={compareCatSummary ?? undefined}
+              theme={theme} label={label} compareLabel={compareLabel} fullscreen={fullscreen}
+            />
             <hr style={ruleStyle} />
-            <CategoricalMatchCard summary={catSummary} theme={theme} />
+            {compareCatSummary ? (
+              <CategoricalDiffSummary
+                summary={catSummary} compareSummary={compareCatSummary}
+                theme={theme} label={label} compareLabel={compareLabel} fullscreen={fullscreen}
+              />
+            ) : (
+              <CategoricalMatchCard summary={catSummary} theme={theme} fullscreen={fullscreen} />
+            )}
           </>
         ) : data && stats ? (
           <>
-            <Histogram data={data} width={contentWidth} height={fullscreen ? 420 : 220} theme={theme} />
+            <Histogram
+              data={data} compareData={compareData} width={contentWidth} height={fullscreen ? 480 : 220} theme={theme}
+              label={label} compareLabel={compareLabel}
+              highlightValue={highlightValue} highlightLabel={highlightLabel}
+              showDensityCurve={showDensityCurve} fullscreen={fullscreen}
+            />
             <hr style={ruleStyle} />
-            <StatsSummary stats={stats} theme={theme} />
-            <hr style={ruleStyle} />
-            <DistributionMatchCard matches={matches} theme={theme} />
+            {compareStats ? (
+              <DistributionDiffSummary
+                stats={stats} compareStats={compareStats} matches={matches} compareMatches={compareMatches}
+                theme={theme} label={label} compareLabel={compareLabel}
+                showDistributionMatch={showDistributionMatch} fullscreen={fullscreen}
+              />
+            ) : (
+              <>
+                <StatsSummary stats={stats} theme={theme} fullscreen={fullscreen} />
+                {showDistributionMatch && (
+                  <>
+                    <hr style={ruleStyle} />
+                    <DistributionMatchCard matches={matches} theme={theme} fullscreen={fullscreen} />
+                  </>
+                )}
+              </>
+            )}
           </>
         ) : null}
 

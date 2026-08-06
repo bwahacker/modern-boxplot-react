@@ -21,6 +21,8 @@ interface SparklineTooltipProps {
   theme: BoxPlotTheme
   numericData?: NumericTooltipData
   categoricalData?: CategoricalSummary
+  highlightValue?: number
+  highlightLabel?: string
 }
 
 const TOOLTIP_WIDTH = 200
@@ -33,9 +35,10 @@ function fmt(n: number): string {
   return n.toFixed(3)
 }
 
-export function SparklineTooltip({ anchorRef, theme, numericData, categoricalData }: SparklineTooltipProps) {
+export function SparklineTooltip({ anchorRef, theme, numericData, categoricalData, highlightValue, highlightLabel }: SparklineTooltipProps) {
   const tooltipRef = useRef<HTMLDivElement>(null)
   const t = theme.popover
+  const highlightColor = theme.colors.highlight ?? theme.colors.mean
   const [, setMeasured] = useState(false)
 
   // Re-measure after first render to get actual height
@@ -177,6 +180,24 @@ export function SparklineTooltip({ anchorRef, theme, numericData, categoricalDat
             </tr>
           </tbody>
         </table>
+      )}
+
+      {highlightValue !== undefined && (
+        <div style={{
+          fontSize: 10, color: highlightColor, marginTop: 4, paddingTop: 4,
+          borderTop: `1px solid ${t.rule}`, fontWeight: 600,
+        }}>
+          {fmt(highlightValue)}{highlightLabel ? ` — ${highlightLabel}` : ''}
+        </div>
+      )}
+
+      {(numericData || categoricalData) && (
+        <div style={{
+          fontSize: 9, color: t.textMuted, marginTop: 4, paddingTop: 4,
+          borderTop: `1px solid ${t.rule}`, fontStyle: 'italic',
+        }}>
+          Click for full detail
+        </div>
       )}
     </div>,
     document.body,

@@ -5,6 +5,7 @@ import {
   countFrequencies,
   categoricalNormalFit,
   isValueCounts,
+  mergedCategoryOrder,
 } from './categorical'
 
 describe('categoricalSummary', () => {
@@ -123,5 +124,30 @@ describe('isValueCounts', () => {
   it('rejects raw string arrays and non-numeric dicts', () => {
     expect(isValueCounts(['a', 'b'])).toBe(false)
     expect(isValueCounts({ a: 'x' })).toBe(false)
+  })
+})
+
+describe('mergedCategoryOrder', () => {
+  it('includes categories exclusive to either side', () => {
+    const order = mergedCategoryOrder({ Cat: 5, Dog: 3 }, { Cat: 5, Bird: 4 })
+    expect(order).toContain('Dog') // exclusive to A
+    expect(order).toContain('Bird') // exclusive to B
+    expect(order).toContain('Cat') // present in both
+    expect(order).toHaveLength(3)
+  })
+
+  it('respects an explicit order and appends categories from either side not listed', () => {
+    const order = mergedCategoryOrder(
+      { Low: 5, High: 20 },
+      { Low: 5, High: 20, Medium: 10 },
+      ['Low', 'Medium', 'High'],
+    )
+    expect(order).toEqual(['Low', 'Medium', 'High'])
+  })
+
+  it('falls back to bell-curve order over the combined counts when no explicit order is given', () => {
+    const order = mergedCategoryOrder({ a: 5, b: 40 }, { a: 5, c: 10 })
+    const mid = Math.floor(order.length / 2)
+    expect(order[mid]).toBe('b') // highest combined count (40) goes in the center
   })
 })

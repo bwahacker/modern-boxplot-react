@@ -8,6 +8,9 @@ export interface DistributionMatch {
   params: Record<string, number>
 }
 
+/** Below this similarity, even the "best" match is a weak/unreliable fit - shared with anything that needs to judge match confidence (e.g. the comparison diff engine). */
+export const LOW_CONFIDENCE_THRESHOLD = 0.3
+
 // ── CDF functions for each candidate distribution ──────────────────────
 
 /** Standard normal CDF approximation (Abramowitz & Stegun) */

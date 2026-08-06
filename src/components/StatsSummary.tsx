@@ -4,6 +4,8 @@ import type { BoxPlotTheme } from '../themes'
 interface StatsSummaryProps {
   stats: DescriptiveStats
   theme: BoxPlotTheme
+  /** Scales up typography and widens the grid for the popover's full-screen mode. */
+  fullscreen?: boolean
 }
 
 function fmt(n: number, decimals: number = 2): string {
@@ -12,7 +14,7 @@ function fmt(n: number, decimals: number = 2): string {
   return n.toFixed(decimals)
 }
 
-export function StatsSummary({ stats, theme }: StatsSummaryProps) {
+export function StatsSummary({ stats, theme, fullscreen = false }: StatsSummaryProps) {
   const t = theme.popover
   const f = theme.font
 
@@ -30,14 +32,17 @@ export function StatsSummary({ stats, theme }: StatsSummaryProps) {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
-      gap: '8px 12px',
+      // Fullscreen has enough width to lay all 8 stats out in a single row
+      // instead of wrapping to two - the point of the full-screen mode being
+      // to actually use the extra space, not just leave it blank.
+      gridTemplateColumns: fullscreen ? 'repeat(8, 1fr)' : 'repeat(4, 1fr)',
+      gap: fullscreen ? '10px 16px' : '8px 12px',
       padding: '0 4px',
     }}>
       {entries.map(([label, value]) => (
         <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 60 }}>
           <span style={{
-            fontSize: f.labelSize,
+            fontSize: fullscreen ? f.labelSize * 1.2 : f.labelSize,
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
             color: t.textMuted,
@@ -46,7 +51,7 @@ export function StatsSummary({ stats, theme }: StatsSummaryProps) {
             {label}
           </span>
           <span style={{
-            fontSize: f.valueSize,
+            fontSize: fullscreen ? f.valueSize * 1.4 : f.valueSize,
             color: t.text,
             fontVariantNumeric: 'tabular-nums',
             fontWeight: 500,

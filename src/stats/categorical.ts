@@ -116,6 +116,33 @@ export function countsFromValueCounts(vc: ValueCounts): Map<string, number> {
   return counts
 }
 
+// ── Comparison ordering ───────────────────────────────────────────────
+// A shared category order across two snapshots of the same column, so
+// bars/rows line up and categories exclusive to one side still get a
+// (zero-count) slot on the other rather than being silently dropped by
+// whichever categoricalSummary() call didn't see them.
+
+export function mergedCategoryOrder(
+  a: string[] | ValueCounts,
+  b: string[] | ValueCounts,
+  explicitOrder?: string[],
+): string[] {
+  const countsA = isValueCounts(a) ? countsFromValueCounts(a) : countFrequencies(a)
+  const countsB = isValueCounts(b) ? countsFromValueCounts(b) : countFrequencies(b)
+
+  const combined = new Map<string, number>()
+  for (const [label, count] of countsA) combined.set(label, (combined.get(label) ?? 0) + count)
+  for (const [label, count] of countsB) combined.set(label, (combined.get(label) ?? 0) + count)
+
+  if (explicitOrder && explicitOrder.length > 0) {
+    const seen = new Set(explicitOrder)
+    const extra = [...combined.keys()].filter(k => !seen.has(k))
+    return [...explicitOrder.filter(k => combined.has(k)), ...extra]
+  }
+
+  return bellCurveOrder(combined)
+}
+
 // ── Main summary function ─────────────────────────────────────────────
 
 export function categoricalSummary(

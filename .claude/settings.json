@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(lsof -ti:5173 -sTCP:LISTEN)",
+      "Bash(xargs -r kill)",
+      "Bash(lsof -ti:5183 -sTCP:LISTEN)",
+      "Bash(npx playwright *)",
+      "Bash(npx vite *)",
+      "Bash(npm run *)",
+      "Bash(node scripts/validate_palette.js \"#dc2626,#0891b2\" --mode light)",
+      "Bash(node -e ' *)",
+      "Bash(node scripts/verify-new-features.mjs)",
+      "Bash(pkill -f \"vite serve --config vite.demo.config.ts\")",
+      "Bash(npm test *)"
+    ]
+  }
+}

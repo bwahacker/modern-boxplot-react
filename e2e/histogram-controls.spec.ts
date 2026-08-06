@@ -24,13 +24,23 @@ test('drag-to-zoom narrows the axis and "Reset zoom" becomes available', async (
   const box = await chart.boundingBox()
   if (!box) throw new Error('chart not found')
 
+  // Axis-tick text only, not marker labels - a marker group always has a
+  // triangle <polygon> (min/Q1/median/mean/Q3/max always show the true
+  // full-column range regardless of zoom, by design), while tick groups
+  // don't. Uses textContent (via allTextContents), not innerText, since
+  // innerText is layout/rendering-based and unreliable for SVG <text>.
+  const tickLocator = chart.locator('g:not(:has(polygon)) > text')
+  const tickTextsBefore = await tickLocator.allTextContents()
+  const maxTickBefore = tickTextsBefore[tickTextsBefore.length - 1]
+
   await page.mouse.move(box.x + box.width * 0.15, box.y + box.height / 2)
   await page.mouse.down()
   await page.mouse.move(box.x + box.width * 0.45, box.y + box.height / 2, { steps: 5 })
   await page.mouse.up()
 
-  // The zoomed-in axis should no longer reach anywhere near the original max (~1.2k).
-  await expect(popover).not.toContainText('1.0k')
+  // The zoomed-in axis should no longer reach anywhere near the original max.
+  const tickTextsAfter = await tickLocator.allTextContents()
+  expect(tickTextsAfter).not.toContain(maxTickBefore)
 
   await popover.locator('button[aria-label="Chart options"]').click()
   await expect(popover.getByText('Reset zoom')).toBeVisible()

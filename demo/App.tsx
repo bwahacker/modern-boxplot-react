@@ -61,7 +61,11 @@ function generateZeroInflated(n: number, zeroProb: number, seed: number): number
 
 // ── Datasets ───────────────────────────────────────────────────────────
 
-const datasets = [
+const datasets: {
+  name: string; desc: string; data: number[]; compareData?: number[]; label?: string; compareLabel?: string
+  highlightValue?: number; direction?: 'higherIsBetter' | 'lowerIsBetter'; showAxis?: boolean
+  description?: string; showDensityCurve?: boolean; showDistributionMatch?: boolean
+}[] = [
   { name: 'Patient ages', desc: 'Clinical trial cohort', data: generateNormal(200, 45, 12, 42) },
   { name: 'Response times', desc: 'API latency (ms)', data: generateLogNormal(500, 5.2, 0.7, 137) },
   { name: 'Test scores', desc: 'Standardized exam', data: generateNormal(100, 72, 8.5, 99) },
@@ -69,6 +73,30 @@ const datasets = [
   { name: 'Wait times', desc: 'Queue duration (min)', data: generateExponential(300, 0.15, 77) },
   { name: 'City populations', desc: 'Two-cluster (k)', data: generateBimodal(250, 314) },
   { name: 'trailer_dryvan', desc: 'Zero-inflated count column', data: generateZeroInflated(2000, 0.97, 314) },
+  {
+    name: 'API latency (week vs week)',
+    desc: 'Comparison mode: mean shift, same shape',
+    data: generateLogNormal(500, 5.2, 0.7, 137),
+    compareData: generateLogNormal(500, 5.5, 0.7, 999),
+    label: 'This week',
+    compareLabel: 'Last week',
+  },
+  {
+    name: 'Server response (this request)',
+    desc: 'highlightValue + direction="lowerIsBetter" + showAxis: report-card style',
+    data: generateLogNormal(500, 5.2, 0.7, 137),
+    highlightValue: 320,
+    direction: 'lowerIsBetter',
+    showAxis: true,
+  },
+  {
+    name: 'Support incidents (this sprint)',
+    desc: 'n=12: showDensityCurve/showDistributionMatch off, description on',
+    data: generateLogNormal(12, 3.6, 1.2, 555),
+    description: 'Hours to resolution for the 12 P2 tickets closed this sprint. Too few points for a smoothed curve or a best-fit label to mean anything - read the bars.',
+    showDensityCurve: false,
+    showDistributionMatch: false,
+  },
 ]
 
 // ── Categorical datasets ──────────────────────────────────────────────
@@ -87,7 +115,12 @@ function generateCategorical(labels: string[], counts: number[], seed: number): 
   return result
 }
 
-const catDatasets: { name: string; desc: string; data: string[] | ValueCounts; categoryOrder?: string[]; trueTotalCount?: number; trueUniqueCount?: number }[] = [
+const catDatasets: {
+  name: string; desc: string; data: string[] | ValueCounts; categoryOrder?: string[]
+  trueTotalCount?: number; trueUniqueCount?: number
+  compareData?: string[] | ValueCounts; label?: string; compareLabel?: string
+  highlightCategory?: string
+}[] = [
   {
     name: 'Satisfaction survey',
     desc: 'Customer feedback',
@@ -135,6 +168,23 @@ const catDatasets: { name: string; desc: string; data: string[] | ValueCounts; c
     ),
     trueTotalCount: 1_469_403,
     trueUniqueCount: 182_004,
+  },
+  {
+    name: 'Browser share (month vs month)',
+    desc: 'Comparison mode: mode flip + new/vanished category',
+    data: { Chrome: 20, Safari: 55, Firefox: 10, Brave: 15 },
+    compareData: { Chrome: 60, Safari: 25, Firefox: 10, Edge: 5 },
+    label: 'This month',
+    compareLabel: 'Last month',
+  },
+  {
+    name: 'Support tickets (flagged: acct #4821)',
+    desc: 'highlightCategory: report-card style',
+    data: generateCategorical(
+      ['Critical', 'High', 'Medium', 'Low', 'Trivial'],
+      [5, 18, 45, 30, 12], 4242,
+    ),
+    highlightCategory: 'High',
   },
 ]
 
@@ -230,7 +280,13 @@ export default function App() {
                 {ds.data.length}
               </td>
               <td style={tdStyle(isDark)}>
-                <BoxPlotSparkline data={ds.data} variant={variant} size={size} theme={activeTheme} />
+                <BoxPlotSparkline
+                  data={ds.data} compareData={ds.compareData} label={ds.label} compareLabel={ds.compareLabel}
+                  highlightValue={ds.highlightValue} direction={ds.direction} showAxis={ds.showAxis}
+                  description={ds.description}
+                  showDensityCurve={ds.showDensityCurve} showDistributionMatch={ds.showDistributionMatch}
+                  variant={variant} size={size} theme={activeTheme}
+                />
               </td>
               <td style={{ ...tdStyle(isDark), textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                 {fmt(mean(ds.data))}
@@ -286,6 +342,10 @@ export default function App() {
                     trueTotalCount={ds.trueTotalCount}
                     trueUniqueCount={ds.trueUniqueCount}
                     title={ds.name}
+                    compareData={ds.compareData}
+                    label={ds.label}
+                    compareLabel={ds.compareLabel}
+                    highlightCategory={ds.highlightCategory}
                   />
                 </td>
                 <td style={tdStyle(isDark)}>

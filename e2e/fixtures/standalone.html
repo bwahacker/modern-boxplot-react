@@ -19,6 +19,61 @@
     data-true-unique-count="182004"
   ></div>
 
+  <div
+    id="numeric-compare"
+    data-boxplot
+    data-values="10,12,11,13,10,12,14,11,13,12"
+    data-compare-values="20,22,21,23,20,22,24,21,23,22"
+    data-title="Numeric comparison example"
+    data-label="Now"
+    data-compare-label="Before"
+  ></div>
+
+  <div
+    id="categorical-compare"
+    data-boxplot
+    data-values="Chrome,Chrome,Safari,Safari,Safari,Firefox"
+    data-compare-values="Chrome,Chrome,Chrome,Chrome,Safari,Firefox"
+    data-title="Categorical comparison example"
+    data-label="Now"
+    data-compare-label="Before"
+  ></div>
+
+  <div
+    id="numeric-highlight"
+    data-boxplot
+    data-values="10,12,11,13,10,12,14,11,13,12,20,9,15,11,12"
+    data-title="Numeric highlight example"
+    data-highlight-value="15"
+    data-direction="lowerIsBetter"
+    data-show-axis="true"
+  ></div>
+
+  <div
+    id="categorical-highlight"
+    data-boxplot
+    data-values="Chrome,Chrome,Safari,Safari,Safari,Firefox"
+    data-title="Categorical highlight example"
+    data-highlight-category="Safari"
+  ></div>
+
+  <div
+    id="small-n-no-curve"
+    data-boxplot
+    data-values="6,9,24,28,45,80,92,110,132,150,180,205"
+    data-title="Small-N example"
+    data-description="Too few points for a smoothed curve or a best-fit label to mean anything."
+    data-show-density-curve="false"
+    data-show-distribution-match="false"
+  ></div>
+
+  <div
+    id="many-categories"
+    data-boxplot
+    data-title="avg_truck_age_years (many categories)"
+    data-values="cat34,cat08,cat12,cat02,cat17,cat12,cat05,cat38,cat35,cat28,cat09,cat07,cat03,cat07,cat28,cat24,cat01,cat22,cat21,cat13,cat19,cat36,cat10,cat19,cat15,cat32,cat39,cat15,cat08,cat35,cat37,cat15,cat27,cat12,cat39,cat23,cat01,cat28,cat10,cat40,cat34,cat27,cat07,cat13,cat11,cat19,cat19,cat37,cat08,cat03,cat07,cat15,cat19,cat38,cat25,cat29,cat03,cat30,cat23,cat02,cat31,cat35,cat27,cat26,cat19,cat37,cat15,cat11,cat21,cat10,cat37,cat38,cat29,cat08,cat09,cat03,cat21,cat25,cat03,cat14,cat11,cat31,cat25,cat19,cat05,cat37,cat13,cat22,cat24,cat10,cat04,cat19,cat17,cat08,cat36,cat34,cat05,cat27,cat36,cat26,cat04,cat21,cat03,cat38,cat30,cat35,cat01,cat10,cat36,cat30,cat03,cat17,cat11,cat33,cat27,cat06,cat08,cat32,cat01,cat15,cat13,cat09,cat20,cat31,cat06,cat03,cat08,cat40,cat28,cat09,cat26,cat39,cat14,cat13,cat38,cat22,cat01,cat01,cat33,cat37,cat27,cat28,cat08,cat23,cat10,cat22,cat39,cat34,cat29,cat06,cat16,cat38,cat08,cat29,cat22,cat25,cat18,cat33,cat29,cat17,cat40,cat33,cat10,cat21,cat03,cat40,cat36,cat10,cat18,cat21,cat36,cat33,cat09,cat04,cat07,cat10,cat37,cat40,cat39,cat20,cat25,cat13,cat40,cat02,cat14,cat22,cat10,cat14,cat36,cat28,cat10,cat02,cat30,cat09,cat07,cat18,cat16,cat01,cat03,cat38,cat39,cat30,cat24,cat02,cat36,cat24,cat24,cat10,cat09,cat16,cat22,cat15,cat34,cat30,cat12,cat08,cat21,cat05,cat20,cat27,cat01,cat16,cat23,cat29,cat11,cat02,cat19,cat38,cat29,cat36,cat11,cat34,cat25,cat34,cat15,cat29,cat28,cat30,cat32,cat28,cat36,cat30,cat15,cat13,cat12,cat05,cat28,cat08,cat07,cat07,cat25,cat30,cat01,cat01,cat06,cat07,cat36,cat24,cat24,cat11,cat21,cat33,cat27,cat11,cat11,cat07,cat24,cat16,cat14,cat11,cat28,cat21,cat40,cat07,cat34,cat17,cat24,cat25,cat01,cat24,cat16,cat34,cat19,cat11,cat16,cat01,cat12,cat30,cat40,cat06,cat22,cat16,cat28,cat05,cat33,cat05,cat33,cat16,cat30,cat28,cat32,cat16,cat37,cat05,cat22,cat37,cat37,cat10,cat04,cat11,cat40,cat30,cat01,cat22,cat40,cat12,cat30,cat07,cat11,cat01,cat11,cat22,cat31,cat05,cat19,cat38,cat28,cat38,cat36,cat40,cat39,cat09,cat39,cat22,cat23,cat14,cat08,cat27,cat08,cat27,cat28,cat12,cat19,cat10,cat37,cat32,cat05,cat16,cat16,cat12,cat29,cat08"
+  ></div>
+
   <script src="../../dist/modern-boxplot.standalone.js"></script>
   <script>
     window.ModernBoxPlot.renderAll()

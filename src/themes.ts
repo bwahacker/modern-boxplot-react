@@ -6,6 +6,8 @@ export interface BoxPlotTheme {
     light: string
     faint: string
     mean: string
+    /** Optional — external "mark my value" annotation color. Falls back to `mean` wherever unset, so hand-authored themes from before this field existed still render correctly. */
+    highlight?: string
   }
   popover: {
     bg: string
@@ -51,6 +53,7 @@ const tufte: BoxPlotTheme = {
     light: '#cbd5e1',
     faint: '#e2e8f0',
     mean: '#dc2626',
+    highlight: '#0891b2',
   },
   popover: {
     bg: '#ffffff',
@@ -76,6 +79,7 @@ const dark: BoxPlotTheme = {
     light: '#475569',
     faint: '#334155',
     mean: '#f87171',
+    highlight: '#0891b2',
   },
   popover: {
     bg: '#0f172a',
@@ -101,6 +105,7 @@ const blueprint: BoxPlotTheme = {
     light: '#bfdbfe',
     faint: '#dbeafe',
     mean: '#dc2626',
+    highlight: '#0891b2',
   },
   popover: {
     bg: '#ffffff',
@@ -126,6 +131,7 @@ const warm: BoxPlotTheme = {
     light: '#fcd34d',
     faint: '#fef3c7',
     mean: '#dc2626',
+    highlight: '#0891b2',
   },
   popover: {
     bg: '#fffbeb',
